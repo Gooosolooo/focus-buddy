@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 整体缩放：改这里的 scaleX / scaleY 就能调大小（1.0=原大小，数字越小人越小） -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.72"
+        android:scaleY="0.72">
+
+
+    <!-- 左边的人：身体 -->
+    <path
+        android:pathData="M40,78 L40,50"
+        android:strokeColor="#2E4352"
+        android:strokeWidth="5"
+        android:strokeLineCap="round" />
+    <!-- 左边的人：实心头（已完成的待办框） -->
+    <path
+        android:pathData="M30.5,40 a9.5,9.5 0 1,0 19,0 a9.5,9.5 0 1,0 -19,0"
+        android:fillColor="#2E4352"
+        android:strokeColor="#2E4352"
+        android:strokeWidth="5" />
+    <!-- 对勾 -->
+    <path
+        android:pathData="M36.5,40.5 l2.8,3 l5.4,-6.2"
+        android:strokeColor="#EAF4FA"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- 右边的人：身体 -->
+    <path
+        android:pathData="M68,78 L68,56"
+        android:strokeColor="#2E4352"
+        android:strokeWidth="5"
+        android:strokeLineCap="round" />
+    <!-- 右边的人：空心头（还没完成） -->
+    <path
+        android:pathData="M58.5,46 a9.5,9.5 0 1,0 19,0 a9.5,9.5 0 1,0 -19,0"
+        android:strokeColor="#2E4352"
+        android:strokeWidth="5" />
+    <!-- 空心头里很淡的小圆点 -->
+    <path
+        android:pathData="M65.6,46 a2.4,2.4 0 1,0 4.8,0 a2.4,2.4 0 1,0 -4.8,0"
+        android:fillColor="#592E4352" />
+
+    <!-- 牵手的小波浪 -->
+    <path
+        android:pathData="M40,66 q7,-5 14,0 t14,0"
+        android:strokeColor="#2E4352"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- 脚下的波浪：深色=已完成，浅色=未完成 -->
+    <path
+        android:pathData="M30,78 q6,-8 12,0 t12,0"
+        android:strokeColor="#2E4352"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M54,78 q6,-8 12,0 t12,0"
+        android:strokeColor="#EAF4FA"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    </group>
+</vector>
