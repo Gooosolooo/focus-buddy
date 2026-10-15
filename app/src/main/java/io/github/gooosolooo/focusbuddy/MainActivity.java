@@ -2,29 +2,32 @@ package io.github.gooosolooo.focusbuddy;
 
 import android.Manifest;
 import android.app.AlarmManager;
-import android.content.res.ColorStateList;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
 import android.graphics.Paint;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
+import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
+
+import com.google.android.material.snackbar.Snackbar;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -38,11 +41,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.function.IntConsumer;
 
 public class MainActivity extends AppCompatActivity {
     private static final int REQ_EXPORT = 11, REQ_IMPORT = 12;
 
     private int tab = 0;                                   // 0 待办 / 1 已完成 / 2 设置
+    private boolean review = false;                        // 是否处于"开工核对"模式
     private final Set<String> expanded = new HashSet<>();  // 当前展开的待办
     private LinearLayout body;
     private final Button[] tabBtns = new Button[3];
@@ -52,7 +57,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);  // 先固定浅色，保证莫兰迪配色
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
         super.onCreate(savedInstanceState);
 
         LinearLayout root = new LinearLayout(this);
@@ -89,6 +94,12 @@ public class MainActivity extends AppCompatActivity {
                 checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1);
         }
+
+        // 从"开工核对"通知点进来：展开所有未归档的待办，方便一次拖完
+        if (getIntent() != null && getIntent().getBooleanExtra("review", false)) {
+            review = true;
+            for (Todo t : TodoStore.all(this)) if (t.completedAt == 0) expanded.add(t.id);
+        }
         render();
     }
 
@@ -107,9 +118,17 @@ public class MainActivity extends AppCompatActivity {
 
     // ================= 待办页 =================
     private void renderTodos() {
+        if (review) {
+            LinearLayout rc = Ui.card(this);
+            rc.addView(Ui.text(this, "开工核对", 17, Ui.INK, true));
+            rc.addView(Ui.text(this, "拖一拖各个待办（或子项目）的进度条，对齐到现在的真实进度。已经替你存好了今天的起点快照。", 13, Ui.SUB, false), Ui.lp(this, 4));
+            rc.addView(Ui.button(this, "核对完了", Ui.SAGE, v -> { review = false; render(); }), Ui.lp(this, 10));
+            body.addView(rc, Ui.lp(this, 0));
+        }
+
         LinearLayout add = Ui.card(this);
         add.setOrientation(LinearLayout.HORIZONTAL);
-        add.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        add.setGravity(Gravity.CENTER_VERTICAL);
         EditText et = Ui.edit(this, "新待办，例如：简历完善", "", false);
         add.addView(et, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         Button ab = Ui.button(this, "添加", Ui.SAGE, v -> {
@@ -124,7 +143,7 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout.LayoutParams ap = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         ap.leftMargin = Ui.dp(this, 10);
         add.addView(ab, ap);
-        body.addView(add, Ui.lp(this, 0));
+        body.addView(add, Ui.lp(this, review ? 12 : 0));
 
         boolean any = false;
         for (Todo t : new ArrayList<>(TodoStore.all(this))) {
@@ -134,7 +153,7 @@ public class MainActivity extends AppCompatActivity {
         }
         if (!any) {
             TextView hint = Ui.text(this, "还没有待办，先添加一条吧", 14, Ui.SUB, false);
-            hint.setGravity(android.view.Gravity.CENTER);
+            hint.setGravity(Gravity.CENTER);
             hint.setPadding(0, Ui.dp(this, 40), 0, 0);
             body.addView(hint, Ui.lp(this, 0));
         }
@@ -151,16 +170,25 @@ public class MainActivity extends AppCompatActivity {
             render();
         });
         head.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        head.addView(Ui.text(this, t.progress() + "%", 15, Ui.DEEP, true));
+        TextView pct = Ui.text(this, t.progress() + "%", 15, Ui.DEEP, true);
+        head.addView(pct);
         c.addView(head);
 
-        ProgressBar pb = Ui.bar(this, Ui.SAGE);
-        pb.setProgress(t.progress());
-        LinearLayout.LayoutParams pp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 8));
-        pp.topMargin = Ui.dp(this, 10);
-        c.addView(pb, pp);
+        if (open && t.subs.isEmpty()) {
+            // 最小一级且展开：可以拖动，10% 一档
+            c.addView(seek(t.progress(), pct, val -> setTodoProgress(t, val)), Ui.lp(this, 4));
+        } else {
+            // 收起，或有子项目：只读进度条
+            ProgressBar pb = Ui.bar(this, Ui.SAGE);
+            pb.setProgress(t.progress());
+            LinearLayout.LayoutParams pp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 8));
+            pp.topMargin = Ui.dp(this, 10);
+            c.addView(pb, pp);
+        }
 
-        String meta = t.subs.isEmpty() ? "无子项目" : t.doneCount() + "/" + t.subs.size() + " 个子项目已完成";
+        String meta = t.subs.isEmpty() ? "无子项目" : t.doneCount() + "/" + t.subs.size() + " 个子项目已完成（总进度=子项目平均）";
+        Integer base = TodoStore.todayBase(this, t.id);
+        if (base != null && t.progress() > base) meta += " · 今天 +" + (t.progress() - base) + "%";
         c.addView(Ui.text(this, meta + (open ? "" : " · 点标题展开"), 12, Ui.SUB, false), Ui.lp(this, 6));
 
         if (open) addExpanded(c, t);
@@ -169,31 +197,18 @@ public class MainActivity extends AppCompatActivity {
 
     private void addExpanded(LinearLayout c, Todo t) {
         for (Todo.Sub s : new ArrayList<>(t.subs)) {
-            LinearLayout r = Ui.row(this);
-            CheckBox cb = new CheckBox(this);
-            cb.setButtonTintList(ColorStateList.valueOf(Ui.DEEP));
-            cb.setChecked(s.done);
-            cb.setOnCheckedChangeListener((b, chk) -> { s.done = chk; onProgressChanged(t); });
-            r.addView(cb);
-            TextView tv = Ui.text(this, s.text, 15, s.done ? Ui.SUB : Ui.INK, false);
-            if (s.done) tv.setPaintFlags(tv.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
-            r.addView(tv, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            LinearLayout top = Ui.row(this);
+            TextView tv = Ui.text(this, s.text, 15, s.progress >= 100 ? Ui.SUB : Ui.INK, false);
+            if (s.progress >= 100) tv.setPaintFlags(tv.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
+            top.addView(tv, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            TextView sp = Ui.text(this, s.progress + "%", 13, Ui.DEEP, true);
+            top.addView(sp);
             TextView x = Ui.text(this, "×", 22, Ui.SUB, false);
             x.setPadding(Ui.dp(this, 12), 0, Ui.dp(this, 4), 0);
-            x.setOnClickListener(v -> { t.subs.remove(s); onProgressChanged(t); });
-            r.addView(x);
-            c.addView(r, Ui.lp(this, 4));
-        }
-
-        if (t.subs.isEmpty()) {
-            LinearLayout r = Ui.row(this);
-            CheckBox cb = new CheckBox(this);
-            cb.setButtonTintList(ColorStateList.valueOf(Ui.DEEP));
-            cb.setChecked(t.done);
-            cb.setOnCheckedChangeListener((b, chk) -> { t.done = chk; onProgressChanged(t); });
-            r.addView(cb);
-            r.addView(Ui.text(this, "标记完成（没有子项目时用）", 14, Ui.SUB, false));
-            c.addView(r, Ui.lp(this, 4));
+            x.setOnClickListener(v -> removeSub(t, s));
+            top.addView(x);
+            c.addView(top, Ui.lp(this, 10));
+            c.addView(seek(s.progress, sp, val -> setSubProgress(t, s, val)), Ui.lp(this, 0));
         }
 
         // 添加子项目
@@ -201,16 +216,17 @@ public class MainActivity extends AppCompatActivity {
         EditText es = Ui.edit(this, "添加子项目", "", false);
         addRow.addView(es, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         Button sb = Ui.button(this, "添加", Ui.SAND, v -> {
-            String s = es.getText().toString().trim();
-            if (s.isEmpty()) return;
+            String txt = es.getText().toString().trim();
+            if (txt.isEmpty()) return;
             Todo.Sub sub = new Todo.Sub();
-            sub.text = s;
+            sub.text = txt;
             t.subs.add(sub);
-            onProgressChanged(t);
+            TodoStore.save(this);
+            render();
         });
-        LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        sp.leftMargin = Ui.dp(this, 8);
-        addRow.addView(sb, sp);
+        LinearLayout.LayoutParams sbp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        sbp.leftMargin = Ui.dp(this, 8);
+        addRow.addView(sb, sbp);
         c.addView(addRow, Ui.lp(this, 12));
 
         // 悬浮计时
@@ -236,14 +252,61 @@ public class MainActivity extends AppCompatActivity {
         c.addView(del, Ui.lp(this, 12));
     }
 
-    /** 进度变化后统一处理：保存；达到 100% 就归档到【已完成】 */
-    private void onProgressChanged(Todo t) {
+    /** 10% 一档的滑块：拖动中只更新数字，松手才提交 */
+    private SeekBar seek(int pct, TextView label, IntConsumer onCommit) {
+        SeekBar sb = new SeekBar(this);
+        sb.setMax(10);
+        sb.setProgress(pct / 10);
+        sb.setProgressTintList(ColorStateList.valueOf(Ui.DEEP));
+        sb.setThumbTintList(ColorStateList.valueOf(Ui.DEEP));
+        sb.setProgressBackgroundTintList(ColorStateList.valueOf(Ui.TRACK));
+        sb.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar s, int p, boolean fromUser) {
+                if (fromUser && label != null) label.setText((p * 10) + "%");
+            }
+            @Override public void onStartTrackingTouch(SeekBar s) { }
+            @Override public void onStopTrackingTouch(SeekBar s) { onCommit.accept(s.getProgress() * 10); }
+        });
+        return sb;
+    }
+
+    private void setTodoProgress(Todo t, int val) {
+        int prev = t.progress;
+        if (val == prev) return;
+        t.progress = val;
+        afterChange(t, () -> t.progress = prev);
+    }
+
+    private void setSubProgress(Todo t, Todo.Sub s, int val) {
+        int prev = s.progress;
+        if (val == prev) return;
+        s.progress = val;
+        afterChange(t, () -> s.progress = prev);
+    }
+
+    private void removeSub(Todo t, Todo.Sub s) {
+        int idx = t.subs.indexOf(s);
+        t.subs.remove(s);
+        afterChange(t, () -> t.subs.add(Math.min(idx, t.subs.size()), s));
+    }
+
+    /** 进度变化后统一处理：保存；到 100% 就归档，并给几秒钟的"撤销" */
+    private void afterChange(Todo t, Runnable undo) {
         if (t.progress() == 100) {
             t.completedAt = System.currentTimeMillis();
-            Toast.makeText(this, "🎉 已归档到【已完成】", Toast.LENGTH_SHORT).show();
+            TodoStore.save(this);
+            render();
+            Snackbar.make(findViewById(android.R.id.content), "🎉 已归档到【已完成】", Snackbar.LENGTH_LONG)
+                    .setAction("撤销", v -> {
+                        undo.run();
+                        t.completedAt = 0;
+                        TodoStore.save(this);
+                        render();
+                    }).show();
+        } else {
+            TodoStore.save(this);
+            render();
         }
-        TodoStore.save(this);
-        render();
     }
 
     // ================= 已完成页 =================
@@ -254,7 +317,7 @@ public class MainActivity extends AppCompatActivity {
 
         if (list.isEmpty()) {
             TextView hint = Ui.text(this, "还没有完成的事项。进度到 100% 会自动出现在这里", 14, Ui.SUB, false);
-            hint.setGravity(android.view.Gravity.CENTER);
+            hint.setGravity(Gravity.CENTER);
             hint.setPadding(0, Ui.dp(this, 40), 0, 0);
             body.addView(hint, Ui.lp(this, 0));
             return;
@@ -269,8 +332,8 @@ public class MainActivity extends AppCompatActivity {
             LinearLayout r = Ui.row(this);
             r.addView(Ui.button(this, "恢复到待办", Ui.SAGE, v -> {
                 t.completedAt = 0;
-                if (t.subs.isEmpty()) t.done = false;
-                else for (Todo.Sub s : t.subs) s.done = false;   // 恢复时把勾选清零，否则会立刻又被归档
+                if (t.subs.isEmpty()) t.progress = 0;
+                else for (Todo.Sub s : t.subs) s.progress = 0;   // 恢复时进度清零
                 TodoStore.save(this);
                 render();
             }));
@@ -283,9 +346,9 @@ public class MainActivity extends AppCompatActivity {
                                 render();
                             })
                             .setNegativeButton("取消", null).show());
-            LinearLayout.LayoutParams dp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            dp.leftMargin = Ui.dp(this, 8);
-            r.addView(del, dp);
+            LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            dlp.leftMargin = Ui.dp(this, 8);
+            r.addView(del, dlp);
             c.addView(r, Ui.lp(this, 10));
             body.addView(c, Ui.lp(this, 12));
         }
@@ -293,36 +356,42 @@ public class MainActivity extends AppCompatActivity {
 
     // ================= 设置页 =================
     private void renderSettings() {
-        // --- 时段提醒 ---
         LinearLayout rc = Ui.card(this);
         rc.addView(Ui.text(this, "时段提醒", 18, Ui.INK, true));
+        rc.addView(Ui.text(this, "每天时段开始的那一刻，会自动记录各待办的进度快照，并提醒你核对。", 13, Ui.SUB, false), Ui.lp(this, 4));
         SharedPreferences p = ReminderScheduler.prefs(this);
         etStart = labeledEdit(rc, "开始（整点，0-23）", String.valueOf(p.getInt("sh", 14)));
         etEnd = labeledEdit(rc, "结束（整点，0-23）", String.valueOf(p.getInt("eh", 17)));
         etIv = labeledEdit(rc, "每隔几分钟提醒一次", String.valueOf(p.getInt("iv", 30)));
-        LinearLayout br = Ui.row(this);
-        br.addView(Ui.button(this, "保存并开启", Ui.SAGE, v -> enable()));
-        Button off = Ui.button(this, "关闭", Ui.SAND, v -> disable());
-        Button test = Ui.button(this, "测试通知", Ui.MAUVE, v -> ReminderScheduler.notifyNow(this));
+
         LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         bp.leftMargin = Ui.dp(this, 8);
-        br.addView(off, bp);
-        br.addView(test, bp);
-        rc.addView(br, Ui.lp(this, 14));
+        LinearLayout row1 = Ui.row(this);
+        row1.addView(Ui.button(this, "保存并开启", Ui.SAGE, v -> enable()));
+        row1.addView(Ui.button(this, "关闭", Ui.SAND, v -> disable()), bp);
+        rc.addView(row1, Ui.lp(this, 14));
+
+        LinearLayout row2 = Ui.row(this);
+        row2.addView(Ui.button(this, "测试通知", Ui.MAUVE, v -> ReminderScheduler.notifyNow(this)));
+        row2.addView(Ui.button(this, "模拟开工核对", Ui.MAUVE, v -> {
+            TodoStore.takeSnapshot(this);
+            ReminderScheduler.notifyNow(this, true);
+            Toast.makeText(this, "已存快照并发出核对通知", Toast.LENGTH_SHORT).show();
+        }), bp);
+        rc.addView(row2, Ui.lp(this, 8));
+
         tvStatus = Ui.text(this, "", 13, Ui.SUB, false);
         rc.addView(tvStatus, Ui.lp(this, 10));
         body.addView(rc, Ui.lp(this, 0));
         refreshStatus(-1);
 
-        // --- 备份与恢复 ---
         LinearLayout bc = Ui.card(this);
         bc.addView(Ui.text(this, "备份与恢复", 18, Ui.INK, true));
-        bc.addView(Ui.text(this, "把所有待办（含子项目和已完成）导出成一个 .json 文件，存到你选的位置，比如“下载”文件夹或网盘。换手机或误删后，可以导入恢复。", 13, Ui.SUB, false), Ui.lp(this, 6));
-        LinearLayout br2 = Ui.row(this);
-        br2.addView(Ui.button(this, "导出备份", Ui.BLUE, v -> doExport()));
-        Button imp = Ui.button(this, "导入恢复", Ui.ROSE, v -> doImport());
-        br2.addView(imp, bp);
-        bc.addView(br2, Ui.lp(this, 12));
+        bc.addView(Ui.text(this, "把所有待办（含子项目、已完成、每日快照）导出成一个 .json 文件，存到你选的位置。换手机或误删后，可以导入恢复。", 13, Ui.SUB, false), Ui.lp(this, 6));
+        LinearLayout br = Ui.row(this);
+        br.addView(Ui.button(this, "导出备份", Ui.BLUE, v -> doExport()));
+        br.addView(Ui.button(this, "导入恢复", Ui.ROSE, v -> doImport()), bp);
+        bc.addView(br, Ui.lp(this, 12));
         body.addView(bc, Ui.lp(this, 12));
     }
 

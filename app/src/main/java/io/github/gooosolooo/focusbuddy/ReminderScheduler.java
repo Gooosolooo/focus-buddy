@@ -72,22 +72,26 @@ public class ReminderScheduler {
         am.cancel(pi);
     }
 
-    static void notifyNow(Context c) {
+    static void notifyNow(Context c) { notifyNow(c, false); }
+
+    /** review=true：每天开工时刻的那条，点开后进入"核对进度"模式 */
+    static void notifyNow(Context c, boolean review) {
         NotificationManager nm = (NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE);
         if (Build.VERSION.SDK_INT >= 26) {
             nm.createNotificationChannel(new NotificationChannel(
                     CHANNEL, "待办提醒", NotificationManager.IMPORTANCE_HIGH));
         }
-        PendingIntent open = PendingIntent.getActivity(c, 2,
-                new Intent(c, MainActivity.class),
+        Intent open = new Intent(c, MainActivity.class);
+        open.putExtra("review", review);
+        PendingIntent pi = PendingIntent.getActivity(c, 2, open,
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
         NotificationCompat.Builder b = new NotificationCompat.Builder(c, CHANNEL)
                 .setSmallIcon(android.R.drawable.ic_popup_reminder)
-                .setContentTitle("该开始了")
-                .setContentText("选一个待办，现在就开始吧")
+                .setContentTitle(review ? "新的一天，先核对一下进度" : "该开始了")
+                .setContentText(review ? "点开拖一拖各待办的进度条" : "选一个待办，现在就开始吧")
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true)
-                .setContentIntent(open);
+                .setContentIntent(pi);
         try {
             nm.notify(100, b.build());
         } catch (SecurityException ignored) { }
