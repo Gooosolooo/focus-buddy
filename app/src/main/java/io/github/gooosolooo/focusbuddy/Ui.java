@@ -13,6 +13,8 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -27,6 +29,8 @@ final class Ui {
     static final int SUB = 0xFF857D76;    // 次要文字
     static final int TRACK = 0xFFE4DED6;  // 进度条底色
     static final int DEEP = 0xFF6F8A76;   // 深鼠尾草绿（强调文字/勾选框）
+    static final int TITLE = 0xFF506756;  // 深莫兰迪鼠尾草绿（待办标题）
+    static final int ACTION_BLUE = 0xFF607D94; // 深雾霾蓝（添加操作）
 
     static final int SAGE = 0xFFA9BAAC;   // 鼠尾草绿
     static final int BLUE = 0xFF9DB0C2;   // 雾霾蓝
@@ -75,6 +79,26 @@ final class Ui {
         setFill(b, color);
         if (l != null) b.setOnClickListener(l);
         return b;
+    }
+
+    /** 统一的无底色图标按钮，保留 48dp 点击区域及同色按压反馈。 */
+    static ImageButton iconButton(Context context, int iconResource, int color, String description,
+            View.OnClickListener listener) {
+        ImageButton button = new ImageButton(context);
+        button.setImageResource(iconResource);
+        button.setImageTintList(ColorStateList.valueOf(color));
+        button.setScaleType(ImageView.ScaleType.CENTER);
+        int padding = dp(context, 12);
+        button.setPadding(padding, padding, padding, padding);
+        button.setMinimumWidth(dp(context, 48));
+        button.setMinimumHeight(dp(context, 48));
+        button.setLayoutParams(new LinearLayout.LayoutParams(dp(context, 48), dp(context, 48)));
+        button.setOnClickListener(listener);
+        button.setContentDescription(description);
+        button.setBackground(new RippleDrawable(
+                ColorStateList.valueOf((color & 0x00FFFFFF) | 0x22000000),
+                null, round(0xFFFFFFFF, dp(context, 24))));
+        return button;
     }
 
     static LinearLayout card(Context c) {

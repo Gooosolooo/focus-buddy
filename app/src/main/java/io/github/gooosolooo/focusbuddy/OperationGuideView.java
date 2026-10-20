@@ -1,61 +1,73 @@
 package io.github.gooosolooo.focusbuddy;
 
 import android.content.Context;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
-/** 底部操作指南，展开时限制高度，内容可独立滚动。 */
-final class OperationGuideView extends LinearLayout {
-    private static final int MAX_CONTENT_HEIGHT_DP = 200;
+import com.google.android.material.bottomsheet.BottomSheetBehavior;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 
-    OperationGuideView(Context context) {
+/** 按需打开的操作指南面板，操作名称与说明分列显示。 */
+final class OperationGuideView extends LinearLayout {
+    private OperationGuideView(Context context, Runnable onClose) {
         super(context);
         setOrientation(VERTICAL);
-        setPadding(Ui.dp(context, 16), 0, Ui.dp(context, 16), Ui.dp(context, 8));
+        setPadding(Ui.dp(context, 20), Ui.dp(context, 12), Ui.dp(context, 20), Ui.dp(context, 24));
+        setBackground(Ui.round(Ui.CARD, Ui.dp(context, 24)));
 
-        TextView header = Ui.text(context, "▸ 操作指南", 14, Ui.DEEP, true);
-        header.setPadding(0, Ui.dp(context, 12), 0, Ui.dp(context, 12));
-        addView(header);
+        View handle = new View(context);
+        handle.setBackground(Ui.round(Ui.TRACK, Ui.dp(context, 2)));
+        LayoutParams handleParams = new LayoutParams(Ui.dp(context, 32), Ui.dp(context, 4));
+        handleParams.gravity = Gravity.CENTER_HORIZONTAL;
+        addView(handle, handleParams);
 
-        ScrollView content = new ScrollView(context) {
-            @Override
-            protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-                int maxHeight = Ui.dp(getContext(), MAX_CONTENT_HEIGHT_DP);
-                if (MeasureSpec.getMode(heightMeasureSpec) != MeasureSpec.UNSPECIFIED) {
-                    maxHeight = Math.min(maxHeight, MeasureSpec.getSize(heightMeasureSpec));
-                }
-                super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(maxHeight, MeasureSpec.AT_MOST));
-            }
-        };
+        LinearLayout header = Ui.row(context);
+        header.addView(Ui.text(context, "操作指南", 20, Ui.TITLE, true),
+                new LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        header.addView(Ui.button(context, "关闭", Ui.SAND, view -> onClose.run()));
+        addView(header, Ui.lp(context, 16));
+
+        ScrollView scroll = new ScrollView(context);
         LinearLayout entries = new LinearLayout(context);
         entries.setOrientation(VERTICAL);
-        String[] instructions = {
-            "> 修改名称：单击待办或子项目标题。",
-            "> 展开/收起：单击待办左侧 ▸ / ▾。",
-            "> 调整进度：按住进度条圆点拖动，每档 10%；无子项目的待办可直接调整。",
-            "> 查看已完成：单击“已完成: 数量/总数”展开或收起。",
-            "> 恢复未完成：将已完成子项目的进度调至 100% 以下。",
-            "> 添加子项目：单击卡片左下角 +。",
-            "> 悬浮计时：单击卡片右下角“悬浮窗计时”。",
-            "> 删除：长按待办或子项目标题，确认后删除。",
-            "> 自动归档：待办进度达到 100% 后移入“已完成”页。"
+        String[][] instructions = {
+            {"修改名称", "单击待办或子项目标题。"},
+            {"添加子项目", "单击标题行的 +，添加后自动展开。"},
+            {"展开/收起", "单击标题行最右侧箭头，查看或收起详情。"},
+            {"调整进度", "按住进度条圆点拖动，每档 10%；无子项目的待办可直接调整。"},
+            {"查看已完成", "单击“已完成: 数量/总数”展开或收起列表。"},
+            {"恢复未完成", "将已完成子项目的进度调至 100% 以下。"},
+            {"悬浮计时", "展开后输入时长（1～1440分钟，默认60），单击“悬浮窗计时”直接启动。"},
+            {"删除项目", "长按待办或子项目标题，确认后删除。"},
+            {"自动归档", "待办进度达到 100% 后移入“已完成”页。"}
         };
-        for (String instruction : instructions) {
-            TextView entry = Ui.text(context, instruction, 13, Ui.INK, false);
-            entry.setPadding(0, 0, 0, Ui.dp(context, 8));
-            entries.addView(entry);
+        for (String[] instruction : instructions) {
+            LinearLayout row = Ui.row(context);
+            row.setGravity(Gravity.TOP);
+            row.setPadding(0, Ui.dp(context, 12), 0, Ui.dp(context, 12));
+            TextView action = Ui.text(context, instruction[0], 14, Ui.TITLE, true);
+            row.addView(action, new LayoutParams(Ui.dp(context, 96), ViewGroup.LayoutParams.WRAP_CONTENT));
+            TextView description = Ui.text(context, instruction[1], 14, Ui.INK, false);
+            row.addView(description, new LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            entries.addView(row);
         }
-        content.addView(entries);
-        content.setVisibility(View.GONE);
-        addView(content, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        scroll.addView(entries);
+        addView(scroll, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+    }
 
-        header.setOnClickListener(view -> {
-            boolean expanded = content.getVisibility() == View.VISIBLE;
-            content.setVisibility(expanded ? View.GONE : View.VISIBLE);
-            header.setText(expanded ? "▸ 操作指南" : "▾ 操作指南");
-        });
+    static void show(Context context) {
+        BottomSheetDialog dialog = new BottomSheetDialog(context);
+        OperationGuideView guide = new OperationGuideView(context, dialog::dismiss);
+        // 留出顶部空间，长内容在面板内滚动。
+        int availableHeight = context.getResources().getDisplayMetrics().heightPixels;
+        int panelHeight = Math.min(Ui.dp(context, 600), availableHeight * 3 / 4);
+        dialog.setContentView(guide, new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, panelHeight));
+        dialog.getBehavior().setState(BottomSheetBehavior.STATE_EXPANDED);
+        dialog.show();
     }
 }

@@ -12,7 +12,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.view.Gravity;
-import android.view.HapticFeedbackConstants;
 import android.view.MotionEvent;
 import android.view.ViewConfiguration;
 import android.view.View;
@@ -20,6 +19,7 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
@@ -54,6 +54,7 @@ public class MainActivity extends AppCompatActivity {
     private int tab = 0;                                   // 0 待办 / 1 已完成 / 2 设置
     private boolean review = false;                        // 是否处于"开工核对"模式
     private final Set<String> expanded = new HashSet<>();  // 当前展开的待办
+    private final Set<String> completedSubsExpanded = new HashSet<>();
     private LinearLayout body;
     private final Button[] tabBtns = new Button[3];
 
@@ -70,9 +71,13 @@ public class MainActivity extends AppCompatActivity {
         root.setBackgroundColor(Ui.BG);
         root.setFitsSystemWindows(true);
 
+        LinearLayout toolbar = Ui.row(this);
+        toolbar.setPadding(Ui.dp(this, 20), Ui.dp(this, 6), Ui.dp(this, 12), 0);
         TextView title = Ui.text(this, "FocusBuddy", 24, Ui.INK, true);
-        title.setPadding(Ui.dp(this, 20), Ui.dp(this, 14), Ui.dp(this, 20), Ui.dp(this, 6));
-        root.addView(title);
+        toolbar.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        toolbar.addView(Ui.iconButton(this, R.drawable.ic_info, Ui.DEEP,
+                "操作指南", view -> OperationGuideView.show(this)));
+        root.addView(toolbar);
 
         LinearLayout tabs = Ui.row(this);
         tabs.setPadding(Ui.dp(this, 14), Ui.dp(this, 4), Ui.dp(this, 14), Ui.dp(this, 8));
@@ -167,32 +172,41 @@ public class MainActivity extends AppCompatActivity {
     private View todoCard(Todo t) {
         boolean open = expanded.contains(t.id);
         LinearLayout c = Ui.card(this);
+        c.setOnLongClickListener(v -> { confirmDeleteTodo(t); return true; });   // 长按：删除
 
         LinearLayout head = Ui.row(this);
-        TextView arrow = Ui.text(this, open ? "▾" : "▸", 18, Ui.DEEP, true);
-        arrow.setPadding(0, Ui.dp(this, 6), Ui.dp(this, 10), Ui.dp(this, 6));
-        arrow.setOnClickListener(v -> toggle(t));
-        head.addView(arrow);
-        TextView title = Ui.text(this, t.title, 17, Ui.INK, true);
-        title.setOnClickListener(v -> toggle(t));
-        title.setOnLongClickListener(v -> {
-            editText("修改待办", t.title, str -> {
-                t.title = str;
-                TodoStore.save(this);
-                render();
-            });
-            return true;
-        });
+        head.setBaselineAligned(false);
+        TextView title = Ui.text(this, t.title, 17, Ui.TITLE, true);
+        title.setOnClickListener(v -> editText("修改待办", t.title, str -> {   // 单击标题：编辑
+            t.title = str;
+            TodoStore.save(this);
+            render();
+        }));
+        title.setOnLongClickListener(v -> { confirmDeleteTodo(t); return true; });
         head.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         TextView pct = Ui.text(this, t.progress() + "%", 15, Ui.DEEP, true);
         head.addView(pct);
+        ImageButton addSubButton = Ui.iconButton(this, R.drawable.ic_add, Ui.ACTION_BLUE,
+                "添加子项目", view -> showAddSubDialog(t));
+        LinearLayout.LayoutParams addSubParams = new LinearLayout.LayoutParams(
+                Ui.dp(this, 48), Ui.dp(this, 48));
+        addSubParams.leftMargin = Ui.dp(this, 8);
+        head.addView(addSubButton, addSubParams);
+        ImageButton arrow = Ui.iconButton(this,
+                open ? R.drawable.ic_expand_down : R.drawable.ic_expand_right, Ui.DEEP,
+                open ? "收起待办详情" : "展开待办详情", view -> toggle(t));
+        arrow.setOnLongClickListener(view -> {
+            confirmDeleteTodo(t);
+            return true;
+        });
+        head.addView(arrow);
         c.addView(head);
 
-        if (open && t.subs.isEmpty()) {
-            // 最小一级且展开：可以拖动，10% 一档
+        if (t.subs.isEmpty()) {
+            // 没有子项目时直接编辑进度，10% 一档。
             c.addView(seek(t.progress(), pct, val -> setTodoProgress(t, val)), Ui.lp(this, 4));
         } else {
-            // 收起，或有子项目：只读进度条
+            // 有子项目时显示汇总进度。
             ProgressBar pb = Ui.bar(this, Ui.SAGE);
             pb.setProgress(t.progress());
             LinearLayout.LayoutParams pp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 8));
@@ -200,91 +214,84 @@ public class MainActivity extends AppCompatActivity {
             c.addView(pb, pp);
         }
 
-        String meta = t.subs.isEmpty() ? "无子项目" : t.doneCount() + "/" + t.subs.size() + " 个子项目已完成（总进度=子项目平均）";
+        String meta = t.subs.isEmpty() ? "" : "已完成 " + t.doneCount() + "/" + t.subs.size();
         Integer base = TodoStore.todayBase(this, t.id);
-        if (base != null && t.progress() > base) meta += " · 今天 +" + (t.progress() - base) + "%";
-        TextView metaTv = Ui.text(this, meta + (open ? " · 长按标题改名" : " · 点标题展开，长按改名"), 12, Ui.SUB, false);
-        metaTv.setPadding(0, Ui.dp(this, 4), 0, Ui.dp(this, 4));
-        metaTv.setOnClickListener(v -> toggle(t));
-        c.addView(metaTv, Ui.lp(this, 4));
+        if (base != null && t.progress() > base) meta += (meta.isEmpty() ? "" : " · ") + "今天 +" + (t.progress() - base) + "%";
+        if (!meta.isEmpty()) {
+            TextView metaTv = Ui.text(this, meta, 12, Ui.SUB, false);
+            metaTv.setPadding(0, Ui.dp(this, 4), 0, Ui.dp(this, 4));
+            c.addView(metaTv, Ui.lp(this, 4));
+        }
 
-        if (open) addExpanded(c, t);
+        if (open) {
+            addExpanded(c, t);
+            LinearLayout actions = Ui.row(this);
+            actions.setGravity(Gravity.END);
+            EditText minutes = Ui.edit(this, "60", "60", true);
+            minutes.setContentDescription("悬浮窗计时时长，1至1440分钟");
+            actions.addView(minutes, new LinearLayout.LayoutParams(
+                    Ui.dp(this, 80), ViewGroup.LayoutParams.WRAP_CONTENT));
+            TextView unit = Ui.text(this, "分钟", 13, Ui.SUB, false);
+            unit.setPadding(Ui.dp(this, 8), 0, Ui.dp(this, 12), 0);
+            actions.addView(unit);
+            actions.addView(Ui.button(this, "悬浮窗计时", Ui.BLUE,
+                    view -> startFloating(t.title, num(minutes, 60, 1, 24 * 60))));
+            c.addView(actions, Ui.lp(this, 8));
+        }
         return c;
     }
 
     private void addExpanded(LinearLayout c, Todo t) {
         for (Todo.Sub s : new ArrayList<>(t.subs)) {
-            FrameLayout wrap = new FrameLayout(this);
-
-            // 底层：左滑后露出的"确认删除"（平时隐藏，避免误触）
-            int reveal = Ui.dp(this, 96);
-            Button delBtn = Ui.button(this, "确认删除", Ui.ROSE, v -> removeSub(t, s));
-            delBtn.setVisibility(View.INVISIBLE);
-            wrap.addView(delBtn, new FrameLayout.LayoutParams(reveal, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.END));
-
-            // 上层：标题行 + 滑块（不透明，盖住底层按钮）
-            LinearLayout block = new LinearLayout(this);
-            block.setOrientation(LinearLayout.VERTICAL);
-            block.setBackgroundColor(Ui.CARD);
-
-            LinearLayout top = Ui.row(this);
-            top.setPadding(0, Ui.dp(this, 8), 0, 0);
-            TextView tv = Ui.text(this, s.text, 15, s.progress >= 100 ? Ui.SUB : Ui.INK, false);
-            if (s.progress >= 100) tv.setPaintFlags(tv.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
-            top.addView(tv, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-            TextView sp = Ui.text(this, s.progress + "%", 13, Ui.DEEP, true);
-            top.addView(sp);
-            block.addView(top);
-            block.addView(seek(s.progress, sp, val -> setSubProgress(t, s, val)));
-
-            wrap.addView(block, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-            attachSwipe(top, block, delBtn, reveal, () -> editText("修改子项目", s.text, str -> {
-                s.text = str;
-                TodoStore.save(this);
-                render();
-            }));
-            c.addView(wrap, Ui.lp(this, 4));
+            if (s.progress < 100) addSubRow(c, t, s);
         }
 
-        // 添加子项目
-        LinearLayout addRow = Ui.row(this);
-        EditText es = Ui.edit(this, "添加子项目", "", false);
-        addRow.addView(es, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        Button sb = Ui.button(this, "添加", Ui.SAND, v -> {
-            String txt = es.getText().toString().trim();
-            if (txt.isEmpty()) return;
+        // 只按进度分组显示，保留数据中的顺序，恢复未完成时回到原位。
+        if (!t.subs.isEmpty()) {
+            boolean doneOpen = completedSubsExpanded.contains(t.id);
+            TextView doneHeader = Ui.text(this,
+                    (doneOpen ? "▾ " : "▸ ") + "已完成: " + t.doneCount() + "/" + t.subs.size(), 15, Ui.SUB, true);
+            doneHeader.setPadding(0, Ui.dp(this, 12), 0, Ui.dp(this, 12));
+            doneHeader.setOnClickListener(v -> {
+                if (!completedSubsExpanded.add(t.id)) completedSubsExpanded.remove(t.id);
+                render();
+            });
+            c.addView(doneHeader, Ui.lp(this, 12));
+            if (doneOpen) {
+                for (Todo.Sub s : new ArrayList<>(t.subs)) {
+                    if (s.progress >= 100) addSubRow(c, t, s);
+                }
+            }
+        }
+    }
+
+    private void showAddSubDialog(Todo todo) {
+        editText("添加子项目", "", text -> {
             Todo.Sub sub = new Todo.Sub();
-            sub.text = txt;
-            t.subs.add(sub);
+            sub.text = text;
+            todo.subs.add(sub);
+            expanded.add(todo.id);
             TodoStore.save(this);
             render();
         });
-        LinearLayout.LayoutParams sbp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        sbp.leftMargin = Ui.dp(this, 8);
-        addRow.addView(sb, sbp);
-        c.addView(addRow, Ui.lp(this, 12));
+    }
 
-        // 悬浮计时
-        LinearLayout tr = Ui.row(this);
-        tr.addView(Ui.text(this, "计时(分钟)", 13, Ui.SUB, false));
-        EditText em = Ui.edit(this, "60", "60", true);
-        LinearLayout.LayoutParams mp = new LinearLayout.LayoutParams(Ui.dp(this, 80), ViewGroup.LayoutParams.WRAP_CONTENT);
-        mp.leftMargin = Ui.dp(this, 8);
-        mp.rightMargin = Ui.dp(this, 8);
-        tr.addView(em, mp);
-        tr.addView(Ui.button(this, "开始悬浮计时", Ui.BLUE, v -> startFloating(t.title, num(em, 60, 1, 24 * 60))));
-        c.addView(tr, Ui.lp(this, 12));
-
-        Button del = Ui.button(this, "删除这个待办", Ui.ROSE, v ->
-                new AlertDialog.Builder(this)
-                        .setMessage("删除“" + t.title + "”？")
-                        .setPositiveButton("删除", (d, w) -> {
-                            TodoStore.all(this).remove(t);
-                            TodoStore.save(this);
-                            render();
-                        })
-                        .setNegativeButton("取消", null).show());
-        c.addView(del, Ui.lp(this, 12));
+    private void addSubRow(LinearLayout c, Todo t, Todo.Sub s) {
+        LinearLayout top = Ui.row(this);
+        top.setPadding(0, Ui.dp(this, 10), 0, Ui.dp(this, 2));
+        TextView tv = Ui.text(this, s.text, 15, s.progress >= 100 ? Ui.SUB : Ui.INK, false);
+        if (s.progress >= 100) tv.setPaintFlags(tv.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
+        top.addView(tv, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        TextView sp = Ui.text(this, s.progress + "%", 13, Ui.DEEP, true);
+        top.addView(sp);
+        top.setOnClickListener(v -> editText("修改子项目", s.text, str -> {
+            s.text = str;
+            TodoStore.save(this);
+            render();
+        }));
+        top.setOnLongClickListener(v -> { confirmDeleteSub(t, s); return true; });
+        c.addView(top, Ui.lp(this, 4));
+        c.addView(seek(s.progress, sp, val -> setSubProgress(t, s, val)), Ui.lp(this, 0));
     }
 
     private void toggle(Todo t) {
@@ -311,64 +318,22 @@ public class MainActivity extends AppCompatActivity {
                 .show();
     }
 
-    /** 在标题行上：长按 = onLongPress；左滑 = 露出底下的"确认删除"；已露出时单击收回 */
-    private void attachSwipe(View target, View block, View delBtn, int reveal, Runnable onLongPress) {
-        final int slop = ViewConfiguration.get(this).getScaledTouchSlop();
-        final float[] st = new float[3];          // downX, downY, 按下时的位移
-        final boolean[] horiz = {false};
-        final boolean[] longFired = {false};
-        final Runnable longPress = () -> {
-            if (!horiz[0] && block.getTranslationX() == 0f) {
-                longFired[0] = true;
-                target.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
-                onLongPress.run();
-            }
-        };
-        target.setOnTouchListener((v, e) -> {
-            switch (e.getActionMasked()) {
-                case MotionEvent.ACTION_DOWN:
-                    st[0] = e.getRawX();
-                    st[1] = e.getRawY();
-                    st[2] = block.getTranslationX();
-                    horiz[0] = false;
-                    longFired[0] = false;
-                    target.postDelayed(longPress, ViewConfiguration.getLongPressTimeout());
-                    return true;
-                case MotionEvent.ACTION_MOVE: {
-                    float dx = e.getRawX() - st[0];
-                    float dy = e.getRawY() - st[1];
-                    if (Math.abs(dx) > slop || Math.abs(dy) > slop) target.removeCallbacks(longPress);
-                    if (!horiz[0] && Math.abs(dx) > slop && Math.abs(dx) > Math.abs(dy)) {
-                        horiz[0] = true;
-                        delBtn.setVisibility(View.VISIBLE);
-                        if (v.getParent() != null) v.getParent().requestDisallowInterceptTouchEvent(true);
-                    }
-                    if (horiz[0]) block.setTranslationX(Math.max(-reveal, Math.min(0, st[2] + dx)));
-                    return true;
-                }
-                case MotionEvent.ACTION_UP:
-                    target.removeCallbacks(longPress);
-                    if (longFired[0]) return true;
-                    if (horiz[0]) {
-                        settle(block, delBtn, block.getTranslationX() < -reveal / 2f ? -reveal : 0);
-                    } else if (Math.abs(e.getRawX() - st[0]) < slop && Math.abs(e.getRawY() - st[1]) < slop) {
-                        if (block.getTranslationX() < 0) settle(block, delBtn, 0);   // 单击：收回删除按钮
-                    }
-                    return true;
-                case MotionEvent.ACTION_CANCEL:
-                    target.removeCallbacks(longPress);
-                    if (horiz[0]) settle(block, delBtn, block.getTranslationX() < -reveal / 2f ? -reveal : 0);
-                    return true;
-                default:
-                    return false;
-            }
-        });
+    private void confirmDeleteTodo(Todo t) {
+        new AlertDialog.Builder(this)
+                .setMessage("删除“" + t.title + "”？")
+                .setPositiveButton("删除", (d, w) -> {
+                    TodoStore.all(this).remove(t);
+                    TodoStore.save(this);
+                    render();
+                })
+                .setNegativeButton("取消", null).show();
     }
 
-    private void settle(View block, View delBtn, float to) {
-        block.animate().translationX(to).setDuration(150).withEndAction(() -> {
-            if (to == 0) delBtn.setVisibility(View.INVISIBLE);
-        }).start();
+    private void confirmDeleteSub(Todo t, Todo.Sub sub) {
+        new AlertDialog.Builder(this)
+                .setMessage("删除子项目“" + sub.text + "”？")
+                .setPositiveButton("删除", (d, w) -> removeSub(t, sub))
+                .setNegativeButton("取消", null).show();
     }
 
     /** 10% 一档的滑块：拖动中只更新数字，松手才提交 */
@@ -379,6 +344,42 @@ public class MainActivity extends AppCompatActivity {
         sb.setProgressTintList(ColorStateList.valueOf(Ui.DEEP));
         sb.setThumbTintList(ColorStateList.valueOf(Ui.DEEP));
         sb.setProgressBackgroundTintList(ColorStateList.valueOf(Ui.TRACK));
+
+        // 只有按住"圆点"才能拖动：点轨道、从别处划过都不会改进度
+        final int grabRange = Ui.dp(this, 24);
+        final int slop = ViewConfiguration.get(this).getScaledTouchSlop();
+        final boolean[] grabbed = {false};
+        final boolean[] moved = {false};
+        final float[] downX = {0f};
+        sb.setOnTouchListener((v, e) -> {
+            switch (e.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN: {
+                    android.graphics.Rect r = sb.getThumb().getBounds();
+                    float thumbCx = sb.getPaddingLeft() - sb.getThumbOffset() + r.centerX();
+                    grabbed[0] = Math.abs(e.getX() - thumbCx) <= grabRange;
+                    moved[0] = false;
+                    downX[0] = e.getX();
+                    if (grabbed[0] && v.getParent() != null) v.getParent().requestDisallowInterceptTouchEvent(true);
+                    return !grabbed[0];          // 没按到圆点：吞掉这次触摸，不改进度
+                }
+                case MotionEvent.ACTION_MOVE:
+                    if (!grabbed[0]) return true;
+                    if (Math.abs(e.getX() - downX[0]) > slop) moved[0] = true;
+                    return false;                // 按住圆点：交给 SeekBar 正常拖动
+                case MotionEvent.ACTION_UP:
+                    if (!grabbed[0]) return true;
+                    if (!moved[0]) {             // 只是轻点圆点、没拖动：当作取消，避免跳档
+                        MotionEvent cancel = MotionEvent.obtain(e);
+                        cancel.setAction(MotionEvent.ACTION_CANCEL);
+                        v.onTouchEvent(cancel);
+                        cancel.recycle();
+                        return true;
+                    }
+                    return false;
+                default:
+                    return !grabbed[0];
+            }
+        });
         sb.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar s, int p, boolean fromUser) {
                 if (fromUser && label != null) label.setText((p * 10) + "%");
