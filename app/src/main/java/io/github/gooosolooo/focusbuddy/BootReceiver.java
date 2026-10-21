@@ -10,6 +10,11 @@ import android.content.Intent;
 public class BootReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context c, Intent intent) {
-        if (ReminderScheduler.enabled(c)) ReminderScheduler.scheduleNext(c, false);
+        if (intent == null || !Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) {
+            return;
+        }
+        if (ReminderScheduler.enabled(c)) {
+            ReminderScheduler.scheduleNext(c, false);
+        }
     }
 }
