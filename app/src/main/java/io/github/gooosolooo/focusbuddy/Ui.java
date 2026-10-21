@@ -31,6 +31,7 @@ final class Ui {
     static final int DEEP = 0xFF6F8A76;   // 深鼠尾草绿（强调文字/勾选框）
     static final int TITLE = 0xFF506756;  // 深莫兰迪鼠尾草绿（待办标题）
     static final int ACTION_BLUE = 0xFF607D94; // 深雾霾蓝（添加操作）
+    static final int SELECT_BG = 0xFFF0F4EF; // 待办选择区域的浅绿色底色
 
     static final int SAGE = 0xFFA9BAAC;   // 鼠尾草绿
     static final int BLUE = 0xFF9DB0C2;   // 雾霾蓝

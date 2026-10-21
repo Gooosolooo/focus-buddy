@@ -7,20 +7,27 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Paint;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.text.TextUtils;
 import android.view.Gravity;
+import android.view.DragEvent;
 import android.view.MotionEvent;
 import android.view.ViewConfiguration;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
+import android.widget.ListView;
+import android.widget.NumberPicker;
+import android.widget.PopupWindow;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.SeekBar;
@@ -50,6 +57,28 @@ import java.util.function.IntConsumer;
 
 public class MainActivity extends AppCompatActivity {
     private static final int REQ_EXPORT = 11, REQ_IMPORT = 12;
+    /** 父卡片文字、进度条和统计区域之间的间距，单位 dp。 */
+    private static final int CARD_CONTENT_GAP_DP = 8;
+    /** 父卡片上下内边距，单位 dp；不影响子项目之间的间距。 */
+    private static final int CARD_SECTION_GAP_DP = 16;
+    /** 父卡片文字行最小高度，单位 dp。 */
+    private static final int CARD_TEXT_ROW_HEIGHT_DP = 24;
+    /** 父卡片进度条区域高度，单位 dp。 */
+    private static final int CARD_PROGRESS_HEIGHT_DP = 20;
+    /** 子项目的水平内边距，单位 dp；只影响子项目，不影响父卡片。 */
+    private static final int SUB_ITEM_HORIZONTAL_PADDING_DP = 0;
+    /** 子项目的上下内边距，单位 dp。 */
+    private static final int SUB_ITEM_VERTICAL_PADDING_DP = 8;
+    /** 相邻子项目及子项目与统计区域的间距，单位 dp。 */
+    private static final int SUB_ITEM_GAP_DP = 8;
+    /** 子项目文字行最小高度，单位 dp；右侧手柄仍保留 48dp 点击区域。 */
+    private static final int SUB_ITEM_TEXT_ROW_HEIGHT_DP = 24;
+    /** 子项目进度条区域高度，单位 dp。 */
+    private static final int SUB_ITEM_PROGRESS_HEIGHT_DP = 20;
+    /** 子项目文字区域与进度条区域的间距，单位 dp。 */
+    private static final int SUB_ITEM_CONTENT_GAP_DP = 8;
+    /** 相邻子项目之间的浅灰分隔线厚度，单位 dp。 */
+    private static final int SUB_ITEM_DIVIDER_HEIGHT_DP = 1;
 
     private int tab = 0;                                   // 0 待办 / 1 已完成 / 2 设置
     private boolean review = false;                        // 是否处于"开工核对"模式
@@ -60,6 +89,14 @@ public class MainActivity extends AppCompatActivity {
 
     private EditText etStart, etEnd, etIv;
     private TextView tvStatus;
+    private LinearLayout timerTodoSelector;
+    private TextView timerTodoLabel;
+    private ImageButton timerTodoExpand;
+    private Button timerMinutes;
+    private int timerMinutesValue = 60;
+    private Button timerStartButton;
+    private String timerTodoId;
+    private final List<Todo> timerTodos = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -98,6 +135,7 @@ public class MainActivity extends AppCompatActivity {
         body.setPadding(Ui.dp(this, 16), Ui.dp(this, 4), Ui.dp(this, 16), Ui.dp(this, 24));
         sv.addView(body);
         root.addView(sv, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+        root.addView(createTimerBar());
         setContentView(root);
 
         if (Build.VERSION.SDK_INT >= 33 &&
@@ -124,6 +162,151 @@ public class MainActivity extends AppCompatActivity {
         if (tab == 0) renderTodos();
         else if (tab == 1) renderDone();
         else renderSettings();
+        refreshTimerTodos();
+    }
+
+    private View createTimerBar() {
+        LinearLayout bar = Ui.row(this);
+        bar.setBaselineAligned(false);
+        bar.setPadding(Ui.dp(this, 12), Ui.dp(this, 8), Ui.dp(this, 12), Ui.dp(this, 8));
+        bar.setBackgroundColor(Ui.CARD);
+        timerTodoSelector = Ui.row(this);
+        GradientDrawable selectorBackground = Ui.round(Ui.SELECT_BG, Ui.dp(this, 12));
+        selectorBackground.setStroke(Ui.dp(this, 1), Ui.SAGE);
+        timerTodoSelector.setBackground(selectorBackground);
+        timerTodoSelector.setPadding(0, 0, Ui.dp(this, 8), 0);
+        timerTodoExpand = Ui.iconButton(this, R.drawable.ic_expand_down, Ui.DEEP,
+                "选择计时待办", view -> showTimerTodoChooser());
+        timerTodoSelector.addView(timerTodoExpand);
+        timerTodoLabel = Ui.text(this, "暂无待办", 14, Ui.TITLE, false);
+        timerTodoLabel.setSingleLine(true);
+        timerTodoLabel.setEllipsize(TextUtils.TruncateAt.END);
+        timerTodoSelector.addView(timerTodoLabel, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        timerTodoSelector.setOnClickListener(view -> showTimerTodoChooser());
+        bar.addView(timerTodoSelector, new LinearLayout.LayoutParams(0, Ui.dp(this, 48), 1f));
+        timerMinutes = Ui.button(this, String.valueOf(timerMinutesValue), Ui.BG,
+                view -> showTimerMinutesPicker());
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.DONUT) {
+            timerMinutes.setContentDescription("设置计时分钟数，点击后可滚动选择或输入数字");
+        }
+        LinearLayout durationGroup = Ui.row(this);
+        durationGroup.setBaselineAligned(false);
+        durationGroup.addView(timerMinutes, new LinearLayout.LayoutParams(Ui.dp(this, 64), Ui.dp(this, 48)));
+        TextView unit = Ui.text(this, "分钟", 13, Ui.SUB, false);
+        unit.setPadding(Ui.dp(this, 4), 0, 0, 0);
+        durationGroup.addView(unit);
+        LinearLayout.LayoutParams durationParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        int componentSpacing = Ui.dp(this, 8);
+        durationParams.setMargins(componentSpacing, 0, componentSpacing, 0);
+        bar.addView(durationGroup, durationParams);
+        timerStartButton = Ui.button(this, "悬浮计时开始", Ui.BLUE, view -> {
+            for (Todo todo : timerTodos) {
+                if (todo.id.equals(timerTodoId)) {
+                    startFloating(todo.title, timerMinutesValue);
+                    return;
+                }
+            }
+        });
+        timerStartButton.setTextSize(13);
+        bar.addView(timerStartButton);
+        return bar;
+    }
+
+    private void refreshTimerTodos() {
+        timerTodos.clear();
+        int selected = 0;
+        for (Todo todo : TodoStore.all(this)) {
+            if (todo.completedAt == 0) {
+                if (todo.id.equals(timerTodoId)) {
+                    selected = timerTodos.size();
+                }
+                timerTodos.add(todo);
+            }
+        }
+        boolean available = !timerTodos.isEmpty();
+        timerTodoId = available ? timerTodos.get(selected).id : null;
+        timerTodoLabel.setText(available ? timerTodos.get(selected).title : "暂无待办");
+        timerTodoSelector.setEnabled(available);
+        timerTodoExpand.setEnabled(available);
+        timerStartButton.setEnabled(available);
+        timerStartButton.setAlpha(available ? 1f : 0.5f);
+    }
+
+    private void showTimerTodoChooser() {
+        if (timerTodos.isEmpty()) {
+            return;
+        }
+        List<Todo> choices = new ArrayList<>(timerTodos);
+        String[] titles = new String[choices.size()];
+        int selected = 0;
+        for (int index = 0; index < choices.size(); index++) {
+            Todo todo = choices.get(index);
+            titles[index] = todo.title;
+            if (todo.id.equals(timerTodoId)) {
+                selected = index;
+            }
+        }
+        ListView list = new ListView(this);
+        list.setDivider(null);
+        list.setAdapter(new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, titles) {
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                TextView label = (TextView) super.getView(position, convertView, parent);
+                label.setTextSize(14);
+                label.setTextColor(Ui.TITLE);
+                label.setSingleLine(true);
+                label.setEllipsize(TextUtils.TruncateAt.END);
+                label.setMinHeight(Ui.dp(MainActivity.this, 48));
+                return label;
+            }
+        });
+        android.graphics.Rect visibleFrame = new android.graphics.Rect();
+        timerTodoSelector.getWindowVisibleDisplayFrame(visibleFrame);
+        int[] location = new int[2];
+        timerTodoSelector.getLocationOnScreen(location);
+        int popupHeight = Math.min(Ui.dp(this, 48) * Math.min(choices.size(), 5),
+                Math.max(Ui.dp(this, 48), location[1] - visibleFrame.top));
+        int popupWidth = Math.min(visibleFrame.width(),
+                Math.max(Ui.dp(this, 200), timerTodoSelector.getWidth()));
+        PopupWindow popup = new PopupWindow(list, popupWidth, popupHeight, true);
+        popup.setBackgroundDrawable(Ui.round(Ui.CARD, Ui.dp(this, 12)));
+        popup.setElevation(Ui.dp(this, 8));
+        popup.setOutsideTouchable(true);
+        popup.setInputMethodMode(PopupWindow.INPUT_METHOD_NOT_NEEDED);
+        list.setOnItemClickListener((parent, view, position, id) -> {
+            Todo todo = choices.get(position);
+            timerTodoId = todo.id;
+            timerTodoLabel.setText(todo.title);
+            popup.dismiss();
+        });
+        popup.showAsDropDown(timerTodoSelector, 0, -timerTodoSelector.getHeight() - popupHeight);
+        list.setSelection(selected);
+    }
+
+    private void showTimerMinutesPicker() {
+        NumberPicker picker = new NumberPicker(this);
+        picker.setMinValue(1);
+        picker.setMaxValue(24 * 60);
+        picker.setValue(timerMinutesValue);
+        picker.setWrapSelectorWheel(false);
+        picker.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
+        picker.setContentDescription("上下滚动选择或点击输入，1至1440分钟");
+        LinearLayout container = new LinearLayout(this);
+        container.setGravity(Gravity.CENTER);
+        container.setPadding(Ui.dp(this, 24), Ui.dp(this, 8), Ui.dp(this, 24), Ui.dp(this, 8));
+        container.addView(picker, new LinearLayout.LayoutParams(Ui.dp(this, 120), Ui.dp(this, 160)));
+        new AlertDialog.Builder(this)
+                .setTitle("计时时长（分钟）")
+                .setView(container)
+                .setPositiveButton("确定", (dialog, which) -> {
+                    picker.clearFocus();
+                    timerMinutesValue = picker.getValue();
+                    timerMinutes.setText(String.valueOf(timerMinutesValue));
+                })
+                .setNegativeButton("取消", null)
+                .show();
     }
 
     // ================= 待办页 =================
@@ -172,11 +355,15 @@ public class MainActivity extends AppCompatActivity {
     private View todoCard(Todo t) {
         boolean open = expanded.contains(t.id);
         LinearLayout c = Ui.card(this);
+        c.setPadding(Ui.dp(this, 16), Ui.dp(this, CARD_SECTION_GAP_DP),
+                Ui.dp(this, 16), Ui.dp(this, CARD_SECTION_GAP_DP));
         c.setOnLongClickListener(v -> { confirmDeleteTodo(t); return true; });   // 长按：删除
 
         LinearLayout head = Ui.row(this);
         head.setBaselineAligned(false);
+        head.setMinimumHeight(Ui.dp(this, CARD_TEXT_ROW_HEIGHT_DP));
         TextView title = Ui.text(this, t.title, 17, Ui.TITLE, true);
+        title.setIncludeFontPadding(false);
         title.setOnClickListener(v -> editText("修改待办", t.title, str -> {   // 单击标题：编辑
             t.title = str;
             TodoStore.save(this);
@@ -185,6 +372,7 @@ public class MainActivity extends AppCompatActivity {
         title.setOnLongClickListener(v -> { confirmDeleteTodo(t); return true; });
         head.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         TextView pct = Ui.text(this, t.progress() + "%", 15, Ui.DEEP, true);
+        pct.setIncludeFontPadding(false);
         head.addView(pct);
         ImageButton addSubButton = Ui.iconButton(this, R.drawable.ic_add, Ui.ACTION_BLUE,
                 "添加子项目", view -> showAddSubDialog(t));
@@ -202,65 +390,69 @@ public class MainActivity extends AppCompatActivity {
         head.addView(arrow);
         c.addView(head);
 
+        FrameLayout progressArea = new FrameLayout(this);
         if (t.subs.isEmpty()) {
             // 没有子项目时直接编辑进度，10% 一档。
-            c.addView(seek(t.progress(), pct, val -> setTodoProgress(t, val)), Ui.lp(this, 4));
+            progressArea.addView(seek(t.progress(), pct, val -> setTodoProgress(t, val)),
+                    new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                            Ui.dp(this, CARD_PROGRESS_HEIGHT_DP), Gravity.CENTER_VERTICAL));
         } else {
             // 有子项目时显示汇总进度。
             ProgressBar pb = Ui.bar(this, Ui.SAGE);
             pb.setProgress(t.progress());
-            LinearLayout.LayoutParams pp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 8));
-            pp.topMargin = Ui.dp(this, 10);
-            c.addView(pb, pp);
+            progressArea.addView(pb, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    Ui.dp(this, 8), Gravity.CENTER_VERTICAL));
         }
+        LinearLayout.LayoutParams progressParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, CARD_PROGRESS_HEIGHT_DP));
+        progressParams.topMargin = Ui.dp(this, CARD_CONTENT_GAP_DP);
+        c.addView(progressArea, progressParams);
 
-        String meta = t.subs.isEmpty() ? "" : "已完成 " + t.doneCount() + "/" + t.subs.size();
+        boolean doneOpen = completedSubsExpanded.contains(t.id);
+        String meta = t.subs.isEmpty() ? "" : (doneOpen ? "▾ " : "▸ ")
+                + "已完成 " + t.doneCount() + "/" + t.subs.size();
         Integer base = TodoStore.todayBase(this, t.id);
         if (base != null && t.progress() > base) meta += (meta.isEmpty() ? "" : " · ") + "今天 +" + (t.progress() - base) + "%";
         if (!meta.isEmpty()) {
             TextView metaTv = Ui.text(this, meta, 12, Ui.SUB, false);
-            metaTv.setPadding(0, Ui.dp(this, 4), 0, Ui.dp(this, 4));
-            c.addView(metaTv, Ui.lp(this, 4));
+            metaTv.setIncludeFontPadding(false);
+            metaTv.setMinHeight(Ui.dp(this, CARD_TEXT_ROW_HEIGHT_DP));
+            metaTv.setGravity(Gravity.CENTER_VERTICAL);
+            if (!t.subs.isEmpty()) {
+                metaTv.setOnClickListener(view -> {
+                    if (!completedSubsExpanded.add(t.id)) {
+                        completedSubsExpanded.remove(t.id);
+                    }
+                    render();
+                });
+            }
+            c.addView(metaTv, Ui.lp(this, CARD_CONTENT_GAP_DP));
+        }
+
+        if (doneOpen) {
+            for (Todo.Sub sub : new ArrayList<>(t.subs)) {
+                if (sub.progress >= 100) {
+                    addSubRow(c, t, sub);
+                }
+            }
         }
 
         if (open) {
             addExpanded(c, t);
-            LinearLayout actions = Ui.row(this);
-            actions.setGravity(Gravity.END);
-            EditText minutes = Ui.edit(this, "60", "60", true);
-            minutes.setContentDescription("悬浮窗计时时长，1至1440分钟");
-            actions.addView(minutes, new LinearLayout.LayoutParams(
-                    Ui.dp(this, 80), ViewGroup.LayoutParams.WRAP_CONTENT));
-            TextView unit = Ui.text(this, "分钟", 13, Ui.SUB, false);
-            unit.setPadding(Ui.dp(this, 8), 0, Ui.dp(this, 12), 0);
-            actions.addView(unit);
-            actions.addView(Ui.button(this, "悬浮窗计时", Ui.BLUE,
-                    view -> startFloating(t.title, num(minutes, 60, 1, 24 * 60))));
-            c.addView(actions, Ui.lp(this, 8));
         }
         return c;
     }
 
     private void addExpanded(LinearLayout c, Todo t) {
-        for (Todo.Sub s : new ArrayList<>(t.subs)) {
-            if (s.progress < 100) addSubRow(c, t, s);
+        if (t.subs.isEmpty()) {
+            TextView hint = Ui.text(this, "暂无子项目，单击+创建子项目", 13, Ui.SUB, false);
+            hint.setIncludeFontPadding(false);
+            c.addView(hint, Ui.lp(this, CARD_CONTENT_GAP_DP));
+            return;
         }
-
-        // 只按进度分组显示，保留数据中的顺序，恢复未完成时回到原位。
-        if (!t.subs.isEmpty()) {
-            boolean doneOpen = completedSubsExpanded.contains(t.id);
-            TextView doneHeader = Ui.text(this,
-                    (doneOpen ? "▾ " : "▸ ") + "已完成: " + t.doneCount() + "/" + t.subs.size(), 15, Ui.SUB, true);
-            doneHeader.setPadding(0, Ui.dp(this, 12), 0, Ui.dp(this, 12));
-            doneHeader.setOnClickListener(v -> {
-                if (!completedSubsExpanded.add(t.id)) completedSubsExpanded.remove(t.id);
-                render();
-            });
-            c.addView(doneHeader, Ui.lp(this, 12));
-            if (doneOpen) {
-                for (Todo.Sub s : new ArrayList<>(t.subs)) {
-                    if (s.progress >= 100) addSubRow(c, t, s);
-                }
+        for (Todo.Sub s : new ArrayList<>(t.subs)) {
+            if (s.progress < 100) {
+                addSubRow(c, t, s);
             }
         }
     }
@@ -277,12 +469,31 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void addSubRow(LinearLayout c, Todo t, Todo.Sub s) {
+        LinearLayout item = new LinearLayout(this);
+        item.setOrientation(LinearLayout.VERTICAL);
+        item.setTag(s);
+        item.setPadding(Ui.dp(this, SUB_ITEM_HORIZONTAL_PADDING_DP),
+                Ui.dp(this, SUB_ITEM_VERTICAL_PADDING_DP), Ui.dp(this, SUB_ITEM_HORIZONTAL_PADDING_DP),
+                Ui.dp(this, SUB_ITEM_VERTICAL_PADDING_DP));
+        View divider = new View(this);
+        divider.setBackgroundColor(Ui.TRACK);
+        LinearLayout.LayoutParams dividerParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, SUB_ITEM_DIVIDER_HEIGHT_DP));
+        dividerParams.bottomMargin = Ui.dp(this, SUB_ITEM_CONTENT_GAP_DP);
+        item.addView(divider, dividerParams);
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
         LinearLayout top = Ui.row(this);
-        top.setPadding(0, Ui.dp(this, 10), 0, Ui.dp(this, 2));
+        top.setBaselineAligned(false);
+        top.setMinimumHeight(Ui.dp(this, SUB_ITEM_TEXT_ROW_HEIGHT_DP));
         TextView tv = Ui.text(this, s.text, 15, s.progress >= 100 ? Ui.SUB : Ui.INK, false);
-        if (s.progress >= 100) tv.setPaintFlags(tv.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
+        tv.setIncludeFontPadding(false);
+        if (s.progress >= 100) {
+            tv.setPaintFlags(tv.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
+        }
         top.addView(tv, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         TextView sp = Ui.text(this, s.progress + "%", 13, Ui.DEEP, true);
+        sp.setIncludeFontPadding(false);
         top.addView(sp);
         top.setOnClickListener(v -> editText("修改子项目", s.text, str -> {
             s.text = str;
@@ -290,8 +501,116 @@ public class MainActivity extends AppCompatActivity {
             render();
         }));
         top.setOnLongClickListener(v -> { confirmDeleteSub(t, s); return true; });
-        c.addView(top, Ui.lp(this, 4));
-        c.addView(seek(s.progress, sp, val -> setSubProgress(t, s, val)), Ui.lp(this, 0));
+        content.addView(top);
+        LinearLayout.LayoutParams progressParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, SUB_ITEM_PROGRESS_HEIGHT_DP));
+        progressParams.topMargin = Ui.dp(this, SUB_ITEM_CONTENT_GAP_DP);
+        content.addView(seek(s.progress, sp, val -> setSubProgress(t, s, val)), progressParams);
+        LinearLayout row = Ui.row(this);
+        row.addView(content, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        ImageButton handle = Ui.iconButton(this, R.drawable.ic_drag_handle, Ui.SUB,
+                "长按上下拖动子项目调整顺序", null);
+        handle.setOnLongClickListener(view -> {
+            SubItemDragState state = new SubItemDragState(t, s, item);
+            boolean started = view.startDragAndDrop(null, new View.DragShadowBuilder(item), state, 0);
+            if (started) {
+                item.setAlpha(0.4f);
+            }
+            return true;
+        });
+        row.addView(handle);
+        item.addView(row);
+        item.setOnDragListener((view, event) -> handleSubItemDrag(c, t, s, item, event));
+        c.setOnDragListener((view, event) -> {
+            if (!(event.getLocalState() instanceof SubItemDragState)) {
+                return false;
+            }
+            SubItemDragState state = (SubItemDragState) event.getLocalState();
+            return state.todo == t;
+        });
+        c.addView(item, Ui.lp(this, SUB_ITEM_GAP_DP));
+        updateSubItemDividers(c);
+    }
+
+    /** 分隔线放在相邻同组子项目之间，不在分组首尾留下多余横线。 */
+    private void updateSubItemDividers(LinearLayout parent) {
+        Todo.Sub previous = null;
+        for (int index = 0; index < parent.getChildCount(); index++) {
+            View child = parent.getChildAt(index);
+            if (!(child.getTag() instanceof Todo.Sub)) {
+                previous = null;
+                continue;
+            }
+            Todo.Sub sub = (Todo.Sub) child.getTag();
+            boolean sameGroup = previous != null && (previous.progress >= 100) == (sub.progress >= 100);
+            LinearLayout item = (LinearLayout) child;
+            item.getChildAt(0).setVisibility(sameGroup ? View.VISIBLE : View.GONE);
+            LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) item.getLayoutParams();
+            params.topMargin = sameGroup ? 0 : Ui.dp(this, SUB_ITEM_GAP_DP);
+            item.setLayoutParams(params);
+            previous = sub;
+        }
+    }
+
+    /** 拖动期间只更新同一完成分组的顺序，松手后统一保存，取消时恢复原顺序。 */
+    private boolean handleSubItemDrag(LinearLayout parent, Todo todo, Todo.Sub target,
+            LinearLayout item, DragEvent event) {
+        if (!(event.getLocalState() instanceof SubItemDragState)) {
+            return false;
+        }
+        SubItemDragState state = (SubItemDragState) event.getLocalState();
+        if (state.todo != todo) {
+            return false;
+        }
+        switch (event.getAction()) {
+            case DragEvent.ACTION_DRAG_STARTED:
+                return true;
+            case DragEvent.ACTION_DRAG_LOCATION:
+                if (state.sub != target && todo.moveSubWithinGroup(state.sub, target,
+                        event.getY() > item.getHeight() / 2f)) {
+                    int sourceIndex = parent.indexOfChild(state.item);
+                    int targetIndex = parent.indexOfChild(item);
+                    int destination = targetIndex + (event.getY() > item.getHeight() / 2f ? 1 : 0);
+                    if (sourceIndex < destination) {
+                        destination--;
+                    }
+                    parent.removeView(state.item);
+                    parent.addView(state.item, destination);
+                    updateSubItemDividers(parent);
+                }
+                return true;
+            case DragEvent.ACTION_DROP:
+                return (state.sub.progress >= 100) == (target.progress >= 100);
+            case DragEvent.ACTION_DRAG_ENDED:
+                if (state.item == item) {
+                    item.setAlpha(1f);
+                    if (event.getResult()) {
+                        TodoStore.save(this);
+                    } else {
+                        todo.subs.clear();
+                        todo.subs.addAll(state.originalOrder);
+                    }
+                    // 等全部拖动结束事件分发后再重绘，避免移除仍在接收事件的视图。
+                    body.post(this::render);
+                }
+                return true;
+            default:
+                return true;
+        }
+    }
+
+    private static final class SubItemDragState {
+        private final Todo todo;
+        private final Todo.Sub sub;
+        private final LinearLayout item;
+        private final List<Todo.Sub> originalOrder;
+
+        private SubItemDragState(Todo todo, Todo.Sub sub, LinearLayout item) {
+            this.todo = todo;
+            this.sub = sub;
+            this.item = item;
+            this.originalOrder = new ArrayList<>(todo.subs);
+        }
     }
 
     private void toggle(Todo t) {

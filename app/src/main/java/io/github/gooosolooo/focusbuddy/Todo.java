@@ -27,6 +27,40 @@ public class Todo {
         public int progress = 0;          // 0~100
     }
 
+    /**
+     * 在相同完成状态的子项目中移动位置，另一分组在原始列表中的位置不变。
+     *
+     * @param moving 要移动的子项目
+     * @param target 拖动经过的目标子项目
+     * @param after 是否放到目标后方
+     * @return 顺序是否发生变化
+     */
+    boolean moveSubWithinGroup(Sub moving, Sub target, boolean after) {
+        if (moving == target || !subs.contains(moving) || !subs.contains(target)
+                || (moving.progress >= 100) != (target.progress >= 100)) {
+            return false;
+        }
+        List<Sub> group = new ArrayList<>();
+        for (Sub sub : subs) {
+            if ((sub.progress >= 100) == (moving.progress >= 100)) {
+                group.add(sub);
+            }
+        }
+        List<Sub> original = new ArrayList<>(group);
+        group.remove(moving);
+        group.add(group.indexOf(target) + (after ? 1 : 0), moving);
+        if (group.equals(original)) {
+            return false;
+        }
+        int groupIndex = 0;
+        for (int index = 0; index < subs.size(); index++) {
+            if ((subs.get(index).progress >= 100) == (moving.progress >= 100)) {
+                subs.set(index, group.get(groupIndex++));
+            }
+        }
+        return true;
+    }
+
     /** 对外展示的进度 */
     public int progress() {
         if (subs.isEmpty()) return progress;
