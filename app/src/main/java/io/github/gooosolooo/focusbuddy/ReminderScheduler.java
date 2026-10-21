@@ -14,6 +14,16 @@ import androidx.core.app.NotificationCompat;
 import java.util.Calendar;
 
 public class ReminderScheduler {
+    /** 未保存开始时间时使用的默认整点小时。 */
+    static final int DEFAULT_START_HOUR = 14;
+    /** 未保存结束时间时使用的默认整点小时。 */
+    static final int DEFAULT_END_HOUR = 17;
+    /** 未保存提醒间隔时使用的默认分钟数。 */
+    static final int DEFAULT_INTERVAL_MINUTES = 60;
+    /** 提醒间隔允许的最小分钟数。 */
+    static final int MIN_INTERVAL_MINUTES = 5;
+    /** 提醒间隔允许的最大分钟数。 */
+    static final int MAX_INTERVAL_MINUTES = 600;
     static final String CHANNEL = "reminder";
 
     static SharedPreferences prefs(Context c) {
@@ -37,7 +47,9 @@ public class ReminderScheduler {
      */
     static long computeNext(Context c, boolean firstRun) {
         SharedPreferences p = prefs(c);
-        int sh = p.getInt("sh", 14), eh = p.getInt("eh", 17), iv = p.getInt("iv", 30);
+        int sh = p.getInt("sh", DEFAULT_START_HOUR);
+        int eh = p.getInt("eh", DEFAULT_END_HOUR);
+        int iv = p.getInt("iv", DEFAULT_INTERVAL_MINUTES);
 
         Calendar now = Calendar.getInstance();
         Calendar t = (Calendar) now.clone();
@@ -66,7 +78,7 @@ public class ReminderScheduler {
         PendingIntent pi = PendingIntent.getBroadcast(c, 1,
             new Intent(c, ReminderReceiver.class),
             PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-        if (Build.VERSION.SDK_INT >= 31 && !am.canScheduleExactAlarms()) {
+        if (!am.canScheduleExactAlarms()) {
             am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi);   // 没授权精确闹钟：允许有几分钟误差
         } else {
             am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi);
@@ -91,10 +103,8 @@ public class ReminderScheduler {
      */
     static void notifyNow(Context c, boolean review) {
         NotificationManager nm = (NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE);
-        if (Build.VERSION.SDK_INT >= 26) {
-            nm.createNotificationChannel(new NotificationChannel(
-                CHANNEL, "待办提醒", NotificationManager.IMPORTANCE_HIGH));
-        }
+        nm.createNotificationChannel(new NotificationChannel(
+            CHANNEL, "待办提醒", NotificationManager.IMPORTANCE_HIGH));
         Intent open = new Intent(c, MainActivity.class);
         open.putExtra("review", review);
         PendingIntent pi = PendingIntent.getActivity(c, 2, open,
@@ -102,7 +112,7 @@ public class ReminderScheduler {
         NotificationCompat.Builder b = new NotificationCompat.Builder(c, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_popup_reminder)
             .setContentTitle(review ? "新的一天，先核对一下进度" : "该开始了")
-            .setContentText(review ? "点开拖一拖各待办的进度条" : "选一个待办，现在就开始吧")
+            .setContentText(review ? "点开拖一拖各待办的进度条" : c.getString(R.string.reminder_break_message))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(pi);

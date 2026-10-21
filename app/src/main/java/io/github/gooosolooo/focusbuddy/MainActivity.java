@@ -12,7 +12,6 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.text.TextUtils;
-import android.view.DragEvent;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -25,7 +24,7 @@ import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ListView;
-import android.widget.NumberPicker;
+import android.view.inputmethod.EditorInfo;
 import android.widget.PopupWindow;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
@@ -85,7 +84,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private static final int SUB_ITEM_GAP_DP = 8;
     /**
-     * 子项目文字行最小高度，单位 dp；右侧手柄仍保留 48dp 点击区域。
+     * 子项目文字行最小高度，单位 dp；左侧手柄仍保留 48dp 点击区域。
      */
     private static final int SUB_ITEM_TEXT_ROW_HEIGHT_DP = 24;
     /**
@@ -100,6 +99,14 @@ public class MainActivity extends AppCompatActivity {
      * 相邻子项目之间的浅灰分隔线厚度，单位 dp。
      */
     private static final int SUB_ITEM_DIVIDER_HEIGHT_DP = 1;
+    /**
+     * 设置页时间数值框高度，单位 dp。
+     */
+    private static final int REMINDER_VALUE_HEIGHT_DP = 32;
+    /**
+     * 设置页时间数值框的浅灰底色。
+     */
+    private static final int REMINDER_VALUE_BACKGROUND = 0xFFF0F0F0;
 
     private int tab = 0;                                   // 0 待办 / 1 已完成 / 2 设置
     private boolean review = false;                        // 是否处于"开工核对"模式
@@ -108,7 +115,9 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayout body;
     private final Button[] tabBtns = new Button[3];
 
-    private EditText etStart, etEnd, etIv;
+    private int reminderStartHour;
+    private int reminderEndHour;
+    private int reminderIntervalMinutes;
     private TextView tvStatus;
     private LinearLayout timerTodoSelector;
     private TextView timerTodoLabel;
@@ -223,9 +232,11 @@ public class MainActivity extends AppCompatActivity {
             0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         timerTodoSelector.setOnClickListener(view -> showTimerTodoChooser());
         bar.addView(timerTodoSelector, new LinearLayout.LayoutParams(0, Ui.dp(this, 48), 1f));
-        timerMinutes = Ui.button(this, getString(R.string.timer_minutes_value, timerMinutesValue), Ui.BG,
+        timerMinutes = Ui.button(this, getString(R.string.timer_minutes_value, timerMinutesValue),
+            REMINDER_VALUE_BACKGROUND,
             view -> showTimerMinutesPicker());
-        timerMinutes.setContentDescription("设置计时分钟数，点击后可滚动选择或输入数字");
+        timerMinutes.setPadding(Ui.dp(this, 4), 0, Ui.dp(this, 4), 0);
+        timerMinutes.setContentDescription(getString(R.string.time_dropdown_description));
         LinearLayout durationGroup = Ui.row(this);
         durationGroup.setBaselineAligned(false);
         durationGroup.addView(timerMinutes, new LinearLayout.LayoutParams(Ui.dp(this, 64), Ui.dp(this, 48)));
@@ -323,27 +334,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showTimerMinutesPicker() {
-        NumberPicker picker = new NumberPicker(this);
-        picker.setMinValue(1);
-        picker.setMaxValue(24 * 60);
-        picker.setValue(timerMinutesValue);
-        picker.setWrapSelectorWheel(false);
-        picker.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
-        picker.setContentDescription("上下滚动选择或点击输入，1至1440分钟");
-        LinearLayout container = new LinearLayout(this);
-        container.setGravity(Gravity.CENTER);
-        container.setPadding(Ui.dp(this, 24), Ui.dp(this, 8), Ui.dp(this, 24), Ui.dp(this, 8));
-        container.addView(picker, new LinearLayout.LayoutParams(Ui.dp(this, 120), Ui.dp(this, 160)));
-        new AlertDialog.Builder(this)
-            .setTitle("计时时长（分钟）")
-            .setView(container)
-            .setPositiveButton("确定", (dialog, which) -> {
-                picker.clearFocus();
-                timerMinutesValue = picker.getValue();
-                timerMinutes.setText(getString(R.string.timer_minutes_value, timerMinutesValue));
-            })
-            .setNegativeButton("取消", null)
-            .show();
+        showTimeDropdown(timerMinutes, timerMinutesValue, 1, 24 * 60, true, value -> {
+            timerMinutesValue = value;
+            timerMinutes.setText(getString(R.string.timer_minutes_value, value));
+        });
     }
 
     // ================= 待办页 =================
@@ -567,33 +561,32 @@ public class MainActivity extends AppCompatActivity {
         progressParams.topMargin = Ui.dp(this, SUB_ITEM_CONTENT_GAP_DP);
         content.addView(seek(s.progress, sp, val -> setSubProgress(t, s, val)), progressParams);
         LinearLayout row = Ui.row(this);
-        row.addView(content, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        row.setGravity(Gravity.TOP);
+        row.setBaselineAligned(false);
         ImageButton handle = Ui.iconButton(this, R.drawable.ic_drag_handle, Ui.SUB,
-            "长按上下拖动子项目调整顺序", null);
-        handle.setOnLongClickListener(view -> {
-            SubItemDragState state = new SubItemDragState(t, s, item);
-            boolean started = view.startDragAndDrop(null, new View.DragShadowBuilder(item), state, 0);
-            if (started) {
-                item.setAlpha(0.4f);
-            }
-            return true;
-        });
+            getString(R.string.subitem_drag_description), null);
+        handle.setPadding(Ui.dp(this, 12), 0, Ui.dp(this, 12), Ui.dp(this, 24));
         row.addView(handle);
+        row.addView(content, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         item.addView(row);
-        item.setOnDragListener((view, event) -> handleSubItemDrag(c, t, s, item, event));
-        c.setOnDragListener((view, event) -> {
-            if (!(event.getLocalState() instanceof SubItemDragState)) {
-                return false;
+        View bottomDivider = new View(this);
+        bottomDivider.setBackgroundColor(Ui.TRACK);
+        LinearLayout.LayoutParams bottomDividerParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, SUB_ITEM_DIVIDER_HEIGHT_DP));
+        bottomDividerParams.topMargin = Ui.dp(this, SUB_ITEM_CONTENT_GAP_DP);
+        item.addView(bottomDivider, bottomDividerParams);
+        new SubItemDragController(c, item, s, handle, (target, after) -> {
+            if (t.moveSubWithinGroup(s, target, after)) {
+                TodoStore.save(this);
+                body.post(this::render);
             }
-            SubItemDragState state = (SubItemDragState) event.getLocalState();
-            return state.todo == t;
         });
         c.addView(item, Ui.lp(this, SUB_ITEM_GAP_DP));
         updateSubItemDividers(c);
     }
 
     /**
-     * 分隔线放在相邻同组子项目之间，不在分组首尾留下多余横线。
+     * 每个分组首尾及相邻子项目之间展示分隔线，避免相邻项出现双线。
      */
     private void updateSubItemDividers(LinearLayout parent) {
         Todo.Sub previous = null;
@@ -606,74 +599,15 @@ public class MainActivity extends AppCompatActivity {
             Todo.Sub sub = (Todo.Sub) child.getTag();
             boolean sameGroup = previous != null && (previous.progress >= 100) == (sub.progress >= 100);
             LinearLayout item = (LinearLayout) child;
-            item.getChildAt(0).setVisibility(sameGroup ? View.VISIBLE : View.GONE);
+            item.getChildAt(0).setVisibility(View.VISIBLE);
+            View next = index + 1 < parent.getChildCount() ? parent.getChildAt(index + 1) : null;
+            boolean nextInGroup = next != null && next.getTag() instanceof Todo.Sub
+                && (((Todo.Sub) next.getTag()).progress >= 100) == (sub.progress >= 100);
+            item.getChildAt(item.getChildCount() - 1).setVisibility(nextInGroup ? View.GONE : View.VISIBLE);
             LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) item.getLayoutParams();
             params.topMargin = sameGroup ? 0 : Ui.dp(this, SUB_ITEM_GAP_DP);
             item.setLayoutParams(params);
             previous = sub;
-        }
-    }
-
-    /**
-     * 拖动期间只更新同一完成分组的顺序，松手后统一保存，取消时恢复原顺序。
-     */
-    private boolean handleSubItemDrag(LinearLayout parent, Todo todo, Todo.Sub target,
-        LinearLayout item, DragEvent event) {
-        if (!(event.getLocalState() instanceof SubItemDragState)) {
-            return false;
-        }
-        SubItemDragState state = (SubItemDragState) event.getLocalState();
-        if (state.todo != todo) {
-            return false;
-        }
-        switch (event.getAction()) {
-            case DragEvent.ACTION_DRAG_STARTED:
-                return true;
-            case DragEvent.ACTION_DRAG_LOCATION:
-                if (state.sub != target && todo.moveSubWithinGroup(state.sub, target,
-                    event.getY() > item.getHeight() / 2f)) {
-                    int sourceIndex = parent.indexOfChild(state.item);
-                    int targetIndex = parent.indexOfChild(item);
-                    int destination = targetIndex + (event.getY() > item.getHeight() / 2f ? 1 : 0);
-                    if (sourceIndex < destination) {
-                        destination--;
-                    }
-                    parent.removeView(state.item);
-                    parent.addView(state.item, destination);
-                    updateSubItemDividers(parent);
-                }
-                return true;
-            case DragEvent.ACTION_DROP:
-                return (state.sub.progress >= 100) == (target.progress >= 100);
-            case DragEvent.ACTION_DRAG_ENDED:
-                if (state.item == item) {
-                    item.setAlpha(1f);
-                    if (event.getResult()) {
-                        TodoStore.save(this);
-                    } else {
-                        todo.subs.clear();
-                        todo.subs.addAll(state.originalOrder);
-                    }
-                    // 等全部拖动结束事件分发后再重绘，避免移除仍在接收事件的视图。
-                    body.post(this::render);
-                }
-                return true;
-            default:
-                return true;
-        }
-    }
-
-    private static final class SubItemDragState {
-        private final Todo todo;
-        private final Todo.Sub sub;
-        private final LinearLayout item;
-        private final List<Todo.Sub> originalOrder;
-
-        private SubItemDragState(Todo todo, Todo.Sub sub, LinearLayout item) {
-            this.todo = todo;
-            this.sub = sub;
-            this.item = item;
-            this.originalOrder = new ArrayList<>(todo.subs);
         }
     }
 
@@ -908,9 +842,16 @@ public class MainActivity extends AppCompatActivity {
         rc.addView(Ui.text(this, "每天时段开始的那一刻，会自动记录各待办的进度快照，并提醒你核对。", 13, Ui.SUB, false),
             Ui.lp(this, 4));
         SharedPreferences p = ReminderScheduler.prefs(this);
-        etStart = labeledEdit(rc, "开始（整点，0-23）", String.valueOf(p.getInt("sh", 14)));
-        etEnd = labeledEdit(rc, "结束（整点，0-23）", String.valueOf(p.getInt("eh", 17)));
-        etIv = labeledEdit(rc, "每隔几分钟提醒一次", String.valueOf(p.getInt("iv", 30)));
+        reminderStartHour = p.getInt("sh", ReminderScheduler.DEFAULT_START_HOUR);
+        reminderEndHour = p.getInt("eh", ReminderScheduler.DEFAULT_END_HOUR);
+        reminderIntervalMinutes = p.getInt("iv", ReminderScheduler.DEFAULT_INTERVAL_MINUTES);
+        addReminderSetting(rc, R.string.reminder_start_time, R.string.reminder_hour_unit,
+            R.string.reminder_start_time, reminderStartHour, 0, 23, value -> reminderStartHour = value);
+        addReminderSetting(rc, R.string.reminder_end_time, R.string.reminder_hour_unit,
+            R.string.reminder_end_time, reminderEndHour, 0, 23, value -> reminderEndHour = value);
+        addReminderSetting(rc, R.string.reminder_every, R.string.reminder_minutes_suffix,
+            R.string.reminder_interval_title, reminderIntervalMinutes, ReminderScheduler.MIN_INTERVAL_MINUTES,
+            ReminderScheduler.MAX_INTERVAL_MINUTES, value -> reminderIntervalMinutes = value);
 
         LinearLayout.LayoutParams bp =
             new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -946,11 +887,116 @@ public class MainActivity extends AppCompatActivity {
         body.addView(bc, Ui.lp(this, 12));
     }
 
-    private EditText labeledEdit(LinearLayout parent, String label, String value) {
-        parent.addView(Ui.text(this, label, 13, Ui.SUB, false), Ui.lp(this, 10));
-        EditText e = Ui.edit(this, "", value, true);
-        parent.addView(e, Ui.lp(this, 4));
-        return e;
+    /** 标题列固定为四个汉字宽，数值框紧接标题列并保持右边缘对齐。 */
+    private void addReminderSetting(LinearLayout parent, int labelResource, int suffixResource,
+        int titleResource, int currentValue, int minimum, int maximum, IntConsumer onConfirm) {
+        LinearLayout row = Ui.row(this);
+        row.setBaselineAligned(false);
+        TextView label = Ui.text(this, getString(labelResource), 14, Ui.INK, false);
+        label.setSingleLine(true);
+        int labelWidth = (int) Math.ceil(label.getPaint().measureText(getString(R.string.reminder_start_time))) + 20;
+        row.addView(label,
+            new LinearLayout.LayoutParams(labelWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
+        Button valueButton = Ui.button(this, getString(R.string.reminder_setting_value, currentValue),
+            REMINDER_VALUE_BACKGROUND, null);
+        valueButton.setPadding(0, 0, 0, 0);
+        valueButton.setIncludeFontPadding(false);
+        valueButton.setGravity(Gravity.CENTER);
+        valueButton.setContentDescription(getString(titleResource));
+        int[] selectedValue = {currentValue};
+        valueButton.setOnClickListener(view -> showTimeDropdown(valueButton,
+            selectedValue[0], minimum, maximum, false, value -> {
+                selectedValue[0] = value;
+                valueButton.setText(getString(R.string.reminder_setting_value, value));
+                onConfirm.accept(value);
+            }));
+        row.addView(valueButton, new LinearLayout.LayoutParams(0,
+            Ui.dp(this, REMINDER_VALUE_HEIGHT_DP), 1f));
+        TextView suffix = Ui.text(this, getString(suffixResource), 14, Ui.SUB, false);
+        suffix.setSingleLine(true);
+        suffix.setPadding(Ui.dp(this, 8), 0, 0, 0);
+        row.addView(suffix, new LinearLayout.LayoutParams(Ui.dp(this, 88), ViewGroup.LayoutParams.WRAP_CONTENT));
+        parent.addView(row, Ui.lp(this, 12));
+    }
+
+    /** 在数值控件旁展开列表；底栏向上展开，输入数字后按键盘完成即可应用。 */
+    private void showTimeDropdown(View anchor, int value, int minimum, int maximum, boolean above,
+        IntConsumer onConfirm) {
+        LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+        container.setFocusableInTouchMode(true);
+        EditText input = Ui.edit(this, getString(R.string.time_input_hint),
+            getString(R.string.reminder_setting_value, value), true);
+        input.setGravity(Gravity.CENTER);
+        input.setImeOptions(EditorInfo.IME_ACTION_DONE);
+        input.setSelectAllOnFocus(true);
+        container.addView(input, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 48)));
+        List<String> values = new ArrayList<>();
+        for (int number = minimum; number <= maximum; number++) {
+            values.add(getString(R.string.reminder_setting_value, number));
+        }
+        ListView list = new ListView(this);
+        list.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, values) {
+            @NonNull
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                TextView label = (TextView) super.getView(position, convertView, parent);
+                label.setGravity(Gravity.CENTER);
+                label.setTextColor(Ui.INK);
+                label.setBackgroundColor(position + minimum == value ? REMINDER_VALUE_BACKGROUND : Ui.CARD);
+                return label;
+            }
+        });
+        container.addView(list, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+        android.graphics.Rect frame = new android.graphics.Rect();
+        anchor.getWindowVisibleDisplayFrame(frame);
+        int[] location = new int[2];
+        anchor.getLocationOnScreen(location);
+        int available = above ? location[1] - frame.top : frame.bottom - location[1] - anchor.getHeight();
+        boolean openAbove = above || available < Ui.dp(this, 144);
+        if (openAbove) {
+            available = location[1] - frame.top;
+        }
+        int height = Math.min(Ui.dp(this, 280), Math.max(Ui.dp(this, 96), available));
+        int width = Math.min(frame.width(), Math.max(anchor.getWidth(), Ui.dp(this, 144)));
+        PopupWindow popup = new PopupWindow(container, width, height, true);
+        popup.setBackgroundDrawable(Ui.round(Ui.CARD, Ui.dp(this, 8)));
+        popup.setElevation(Ui.dp(this, 4));
+        popup.setOutsideTouchable(true);
+        popup.setInputMethodMode(PopupWindow.INPUT_METHOD_NEEDED);
+        popup.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+        popup.setOnDismissListener(() -> {
+            android.view.inputmethod.InputMethodManager keyboard =
+                (android.view.inputmethod.InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+            if (keyboard != null) {
+                keyboard.hideSoftInputFromWindow(input.getWindowToken(), 0);
+            }
+        });
+        list.setOnItemClickListener((parent, view, position, id) -> {
+            onConfirm.accept(minimum + position);
+            popup.dismiss();
+        });
+        input.setOnEditorActionListener((view, action, event) -> {
+            if (action != EditorInfo.IME_ACTION_DONE) {
+                return false;
+            }
+            try {
+                int entered = Integer.parseInt(input.getText().toString().trim());
+                if (entered >= minimum && entered <= maximum) {
+                    onConfirm.accept(entered);
+                    popup.dismiss();
+                    return true;
+                }
+            } catch (NumberFormatException ignored) {
+                // 空值或超出整数范围时，保留输入并提示允许范围。
+            }
+            input.setError(getString(R.string.time_input_range, minimum, maximum));
+            return true;
+        });
+        container.requestFocus();
+        popup.showAsDropDown(anchor, 0, openAbove ? -anchor.getHeight() - height : 0);
+        list.setSelection(Math.max(0, Math.min(maximum - minimum, value - minimum)));
     }
 
     // ================= 备份 =================
@@ -1028,20 +1074,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // ================= 时段提醒 =================
-    private int num(EditText et, int def, int min, int max) {
-        try {
-            int v = Integer.parseInt(et.getText().toString().trim());
-            return Math.max(min, Math.min(max, v));
-        } catch (Exception e) {
-            return def;
-        }
-    }
-
     private void enable() {
         ReminderScheduler.prefs(this).edit()
-            .putInt("sh", num(etStart, 14, 0, 23))
-            .putInt("eh", num(etEnd, 17, 0, 23))
-            .putInt("iv", num(etIv, 30, 5, 600))
+            .putInt("sh", reminderStartHour)
+            .putInt("eh", reminderEndHour)
+            .putInt("iv", reminderIntervalMinutes)
             .putBoolean("on", true).apply();
 
         AlarmManager am = (AlarmManager) getSystemService(ALARM_SERVICE);

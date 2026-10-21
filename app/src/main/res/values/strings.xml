@@ -22,4 +22,20 @@
     <string name="timer_overtime">已超时 %1$s</string>
     <string name="timer_progress">%1$s / %2$s\u0020\u0020(%3$d%%)</string>
     <string name="timer_duration">%1$02d:%2$02d:%3$02d</string>
+    <string name="reminder_start_time">开始时间</string>
+    <string name="reminder_end_time">结束时间</string>
+    <string name="reminder_every">每隔</string>
+    <string name="reminder_hour_unit">时</string>
+    <string name="reminder_minutes_suffix">分钟提醒</string>
+    <string name="reminder_interval_title">提醒间隔（分钟）</string>
+    <string name="reminder_setting_value">%1$d</string>
+    <string name="confirm_setting">确定</string>
+    <string name="cancel_setting">取消</string>
+    <string name="subitem_drag_description">长按左侧手柄，上下拖动子项目调整顺序</string>
+    <string name="guide_subitem_reorder">长按子项目左侧三杠手柄，整条项目只沿竖直方向移动；松手保存，已完成和未完成分别排序。</string>
+    <string name="guide_reminder_settings">在设置页单击开始时间、结束时间或提醒间隔，在下拉列表选择数字，或输入数字后按键盘完成，再保存并开启。</string>
+    <string name="time_dropdown_description">单击展开时间下拉列表，也可输入数字</string>
+    <string name="time_input_hint">输入数字，按完成应用</string>
+    <string name="time_input_range">请输入 %1$d～%2$d 之间的数字</string>
+    <string name="reminder_break_message">休息一下！起来活动一下~喝点水~</string>
 </resources>

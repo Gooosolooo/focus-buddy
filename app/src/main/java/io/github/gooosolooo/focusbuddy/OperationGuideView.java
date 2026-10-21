@@ -45,7 +45,8 @@ final class OperationGuideView extends LinearLayout {
             {"恢复未完成", "将已完成子项目的进度调至 100% 以下。"},
             {"悬浮计时", "点击底部左侧箭头或名称，在上方列表选择待办；点击分钟数后滚动选择或输入时长（1～1440，默认60），再点击“悬浮计时开始”。"},
             {"删除项目", "长按待办或子项目标题，确认后删除。"},
-            {"调整顺序", "长按子项目右侧三杠手柄，上下拖动后松手保存；已完成和未完成分别排序。"},
+            {"调整顺序", context.getString(R.string.guide_subitem_reorder)},
+            {"时段提醒", context.getString(R.string.guide_reminder_settings)},
             {"自动归档", "待办进度达到 100% 后移入“已完成”页。"}
         };
         for (String[] instruction : instructions) {
