@@ -64,8 +64,10 @@ public class FloatingTimerService extends Service {
         startAt = System.currentTimeMillis();   // 开始计时的时刻
 
         startAsForeground();
-        if (root == null) buildOverlay();
-        tvTitle.setText(title == null || title.isEmpty() ? "专注中" : title);
+        if (root == null) {
+            buildOverlay();
+        }
+        tvTitle.setText(title == null || title.isEmpty() ? getString(R.string.timer_default_title) : title);
         bar.setProgressTintList(ColorStateList.valueOf(0xFF4FC3A8));
 
         handler.removeCallbacks(tick);
@@ -121,7 +123,7 @@ public class FloatingTimerService extends Service {
         top.addView(tvTitle, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
         TextView close = new TextView(this);
-        close.setText("×");
+        close.setText(R.string.timer_close);
         close.setTextColor(0xFFB8C7C0);
         close.setTextSize(20);
         close.setPadding(dp(10), 0, 0, 0);
@@ -185,15 +187,15 @@ public class FloatingTimerService extends Service {
         bar.setProgress((int) (r * 1000));
         if (el > totalMs) {
             bar.setProgressTintList(ColorStateList.valueOf(0xFFF0A070));
-            tvTime.setText("已超时 " + fmt(el - totalMs));
+            tvTime.setText(getString(R.string.timer_overtime, fmt(el - totalMs)));
         } else {
-            tvTime.setText(fmt(el) + " / " + fmt(totalMs) + "  (" + Math.round(r * 100) + "%)");
+            tvTime.setText(getString(R.string.timer_progress, fmt(el), fmt(totalMs), Math.round(r * 100)));
         }
     }
 
-    private static String fmt(long ms) {
+    private String fmt(long ms) {
         long s = Math.max(0, ms / 1000);
-        return String.format("%02d:%02d:%02d", s / 3600, s % 3600 / 60, s % 60);
+        return getString(R.string.timer_duration, s / 3600, s % 3600 / 60, s % 60);
     }
 
     @Override

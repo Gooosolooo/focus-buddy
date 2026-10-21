@@ -1,3 +1,25 @@
 <resources>
     <string name="app_name">Focus Buddy</string>
+    <string name="completed_tab">已完成</string>
+    <string name="completed_tab_count">已完成 %1$d</string>
+    <string name="progress_percent">%1$d%%</string>
+    <string name="completed_subitems">%1$s 已完成 %2$d/%3$d</string>
+    <string name="progress_today">今天 +%1$d%%</string>
+    <string name="completed_subitems_today">%1$s · 今天 +%2$d%%</string>
+    <string name="completed_at">完成于 %1$s</string>
+    <string name="completed_at_with_subitems">完成于 %1$s · %2$d 个子项目</string>
+    <string name="confirm_delete_todo">删除“%1$s”？</string>
+    <string name="confirm_delete_subitem">删除子项目“%1$s”？</string>
+    <string name="confirm_delete_completed_todo">彻底删除“%1$s”？</string>
+    <string name="backup_failed">备份失败：%1$s</string>
+    <string name="import_read_failed">读取失败：%1$s</string>
+    <string name="reminder_disabled">提醒：已关闭</string>
+    <string name="reminder_enabled">提醒：已开启</string>
+    <string name="reminder_next">提醒：已开启，下一次 %1$s</string>
+    <string name="timer_minutes_value">%1$d</string>
+    <string name="timer_default_title">专注中</string>
+    <string name="timer_close">×</string>
+    <string name="timer_overtime">已超时 %1$s</string>
+    <string name="timer_progress">%1$s / %2$s\u0020\u0020(%3$d%%)</string>
+    <string name="timer_duration">%1$02d:%2$02d:%3$02d</string>
 </resources>

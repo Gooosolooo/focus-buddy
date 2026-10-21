@@ -162,8 +162,7 @@ public class MainActivity extends AppCompatActivity {
         root.addView(createTimerBar());
         setContentView(root);
 
-        if (Build.VERSION.SDK_INT >= 33 &&
-                checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1);
         }
 
@@ -182,9 +181,16 @@ public class MainActivity extends AppCompatActivity {
     // ================= 总渲染 =================
     private void render() {
         int doneN = 0;
-        for (Todo t : TodoStore.all(this)) if (t.completedAt > 0) doneN++;
-        tabBtns[1].setText(doneN > 0 ? "已完成 " + doneN : "已完成");
-        for (int i = 0; i < 3; i++) Ui.setFill(tabBtns[i], i == tab ? Ui.SAGE : Ui.SAND);
+        for (Todo t : TodoStore.all(this)) {
+            if (t.completedAt > 0) {
+                doneN++;
+            }
+        }
+        tabBtns[1].setText(doneN > 0 ? getString(R.string.completed_tab_count, doneN)
+            : getString(R.string.completed_tab));
+        for (int i = 0; i < 3; i++) {
+            Ui.setFill(tabBtns[i], i == tab ? Ui.SAGE : Ui.SAND);
+        }
 
         body.removeAllViews();
         if (tab == 0) {
@@ -217,11 +223,9 @@ public class MainActivity extends AppCompatActivity {
             0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         timerTodoSelector.setOnClickListener(view -> showTimerTodoChooser());
         bar.addView(timerTodoSelector, new LinearLayout.LayoutParams(0, Ui.dp(this, 48), 1f));
-        timerMinutes = Ui.button(this, String.valueOf(timerMinutesValue), Ui.BG,
-                view -> showTimerMinutesPicker());
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.DONUT) {
-            timerMinutes.setContentDescription("设置计时分钟数，点击后可滚动选择或输入数字");
-        }
+        timerMinutes = Ui.button(this, getString(R.string.timer_minutes_value, timerMinutesValue), Ui.BG,
+            view -> showTimerMinutesPicker());
+        timerMinutes.setContentDescription("设置计时分钟数，点击后可滚动选择或输入数字");
         LinearLayout durationGroup = Ui.row(this);
         durationGroup.setBaselineAligned(false);
         durationGroup.addView(timerMinutes, new LinearLayout.LayoutParams(Ui.dp(this, 64), Ui.dp(this, 48)));
@@ -282,7 +286,8 @@ public class MainActivity extends AppCompatActivity {
         }
         ListView list = new ListView(this);
         list.setDivider(null);
-        list.setAdapter(new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, titles) {
+        list.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, titles) {
+            @NonNull
             @Override
             public View getView(int position, View convertView, ViewGroup parent) {
                 TextView label = (TextView) super.getView(position, convertView, parent);
@@ -330,15 +335,15 @@ public class MainActivity extends AppCompatActivity {
         container.setPadding(Ui.dp(this, 24), Ui.dp(this, 8), Ui.dp(this, 24), Ui.dp(this, 8));
         container.addView(picker, new LinearLayout.LayoutParams(Ui.dp(this, 120), Ui.dp(this, 160)));
         new AlertDialog.Builder(this)
-                .setTitle("计时时长（分钟）")
-                .setView(container)
-                .setPositiveButton("确定", (dialog, which) -> {
-                    picker.clearFocus();
-                    timerMinutesValue = picker.getValue();
-                    timerMinutes.setText(String.valueOf(timerMinutesValue));
-                })
-                .setNegativeButton("取消", null)
-                .show();
+            .setTitle("计时时长（分钟）")
+            .setView(container)
+            .setPositiveButton("确定", (dialog, which) -> {
+                picker.clearFocus();
+                timerMinutesValue = picker.getValue();
+                timerMinutes.setText(getString(R.string.timer_minutes_value, timerMinutesValue));
+            })
+            .setNegativeButton("取消", null)
+            .show();
     }
 
     // ================= 待办页 =================
@@ -419,7 +424,7 @@ public class MainActivity extends AppCompatActivity {
             return true;
         });
         head.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        TextView pct = Ui.text(this, t.progress() + "%", 15, Ui.DEEP, true);
+        TextView pct = Ui.text(this, getString(R.string.progress_percent, t.progress()), 15, Ui.DEEP, true);
         pct.setIncludeFontPadding(false);
         head.addView(pct);
         ImageButton addSubButton = Ui.iconButton(this, R.drawable.ic_add, Ui.ACTION_BLUE,
@@ -457,10 +462,14 @@ public class MainActivity extends AppCompatActivity {
         c.addView(progressArea, progressParams);
 
         boolean doneOpen = completedSubsExpanded.contains(t.id);
-        String meta = t.subs.isEmpty() ? "" : (doneOpen ? "▾ " : "▸ ")
-                + "已完成 " + t.doneCount() + "/" + t.subs.size();
+        String meta = t.subs.isEmpty() ? "" : getString(R.string.completed_subitems,
+            doneOpen ? "▾" : "▸", t.doneCount(), t.subs.size());
         Integer base = TodoStore.todayBase(this, t.id);
-        if (base != null && t.progress() > base) meta += (meta.isEmpty() ? "" : " · ") + "今天 +" + (t.progress() - base) + "%";
+        if (base != null && t.progress() > base) {
+            int progressToday = t.progress() - base;
+            meta = meta.isEmpty() ? getString(R.string.progress_today, progressToday)
+                : getString(R.string.completed_subitems_today, meta, progressToday);
+        }
         if (!meta.isEmpty()) {
             TextView metaTv = Ui.text(this, meta, 12, Ui.SUB, false);
             metaTv.setIncludeFontPadding(false);
@@ -540,7 +549,7 @@ public class MainActivity extends AppCompatActivity {
             tv.setPaintFlags(tv.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
         }
         top.addView(tv, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        TextView sp = Ui.text(this, s.progress + "%", 13, Ui.DEEP, true);
+        TextView sp = Ui.text(this, getString(R.string.progress_percent, s.progress), 13, Ui.DEEP, true);
         sp.setIncludeFontPadding(false);
         top.addView(sp);
         top.setOnClickListener(v -> editText("修改子项目", s.text, str -> {
@@ -700,20 +709,20 @@ public class MainActivity extends AppCompatActivity {
 
     private void confirmDeleteTodo(Todo t) {
         new AlertDialog.Builder(this)
-                .setMessage("删除“" + t.title + "”？")
-                .setPositiveButton("删除", (d, w) -> {
-                    TodoStore.all(this).remove(t);
-                    TodoStore.save(this);
-                    render();
-                })
-                .setNegativeButton("取消", null).show();
+            .setMessage(getString(R.string.confirm_delete_todo, t.title))
+            .setPositiveButton("删除", (d, w) -> {
+                TodoStore.all(this).remove(t);
+                TodoStore.save(this);
+                render();
+            })
+            .setNegativeButton("取消", null).show();
     }
 
     private void confirmDeleteSub(Todo t, Todo.Sub sub) {
         new AlertDialog.Builder(this)
-                .setMessage("删除子项目“" + sub.text + "”？")
-                .setPositiveButton("删除", (d, w) -> removeSub(t, sub))
-                .setNegativeButton("取消", null).show();
+            .setMessage(getString(R.string.confirm_delete_subitem, sub.text))
+            .setPositiveButton("删除", (d, w) -> removeSub(t, sub))
+            .setNegativeButton("取消", null).show();
     }
 
     /**
@@ -771,8 +780,11 @@ public class MainActivity extends AppCompatActivity {
             }
         });
         sb.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override public void onProgressChanged(SeekBar s, int p, boolean fromUser) {
-                if (fromUser && label != null) label.setText((p * 10) + "%");
+            @Override
+            public void onProgressChanged(SeekBar s, int p, boolean fromUser) {
+                if (fromUser && label != null) {
+                    label.setText(getString(R.string.progress_percent, p * 10));
+                }
             }
 
             @Override
@@ -834,8 +846,12 @@ public class MainActivity extends AppCompatActivity {
     // ================= 已完成页 =================
     private void renderDone() {
         List<Todo> list = new ArrayList<>();
-        for (Todo t : TodoStore.all(this)) if (t.completedAt > 0) list.add(t);
-        Collections.sort(list, (a, b) -> Long.compare(b.completedAt, a.completedAt));
+        for (Todo t : TodoStore.all(this)) {
+            if (t.completedAt > 0) {
+                list.add(t);
+            }
+        }
+        list.sort((a, b) -> Long.compare(b.completedAt, a.completedAt));
 
         if (list.isEmpty()) {
             TextView hint = Ui.text(this, "还没有完成的事项。进度到 100% 会自动出现在这里", 14, Ui.SUB, false);
@@ -848,8 +864,11 @@ public class MainActivity extends AppCompatActivity {
         for (Todo t : list) {
             LinearLayout c = Ui.card(this);
             c.addView(Ui.text(this, t.title, 17, Ui.INK, true));
-            String sub = t.subs.isEmpty() ? "" : " · " + t.subs.size() + " 个子项目";
-            c.addView(Ui.text(this, "完成于 " + f.format(new Date(t.completedAt)) + sub, 12, Ui.SUB, false), Ui.lp(this, 4));
+            String completedTime = f.format(new Date(t.completedAt));
+            String completedDetails = t.subs.isEmpty() ? getString(R.string.completed_at, completedTime)
+                : getString(R.string.completed_at_with_subitems, completedTime, t.subs.size());
+            c.addView(Ui.text(this, completedDetails, 12, Ui.SUB, false),
+                Ui.lp(this, 4));
 
             LinearLayout r = Ui.row(this);
             r.addView(Ui.button(this, "恢复到待办", Ui.SAGE, v -> {
@@ -865,15 +884,16 @@ public class MainActivity extends AppCompatActivity {
                 render();
             }));
             Button del = Ui.button(this, "删除", Ui.ROSE, v ->
-                    new AlertDialog.Builder(this)
-                            .setMessage("彻底删除“" + t.title + "”？")
-                            .setPositiveButton("删除", (d, w) -> {
-                                TodoStore.all(this).remove(t);
-                                TodoStore.save(this);
-                                render();
-                            })
-                            .setNegativeButton("取消", null).show());
-            LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                new AlertDialog.Builder(this)
+                    .setMessage(getString(R.string.confirm_delete_completed_todo, t.title))
+                    .setPositiveButton("删除", (d, w) -> {
+                        TodoStore.all(this).remove(t);
+                        TodoStore.save(this);
+                        render();
+                    })
+                    .setNegativeButton("取消", null).show());
+            LinearLayout.LayoutParams dlp =
+                new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             dlp.leftMargin = Ui.dp(this, 8);
             r.addView(del, dlp);
             c.addView(r, Ui.lp(this, 10));
@@ -963,30 +983,33 @@ public class MainActivity extends AppCompatActivity {
                 os.write(TodoStore.exportJson(this).getBytes(StandardCharsets.UTF_8));
                 Toast.makeText(this, "备份成功", Toast.LENGTH_SHORT).show();
             } catch (Exception e) {
-                Toast.makeText(this, "备份失败：" + e.getMessage(), Toast.LENGTH_LONG).show();
+                Toast.makeText(this, getString(R.string.backup_failed, e.getMessage()), Toast.LENGTH_LONG).show();
             }
         } else if (req == REQ_IMPORT) {
             new AlertDialog.Builder(this)
-                    .setMessage("导入会覆盖现有的所有待办，确定继续吗？")
-                    .setPositiveButton("导入", (d, w) -> {
-                        try (InputStream is = getContentResolver().openInputStream(uri)) {
-                            ByteArrayOutputStream bo = new ByteArrayOutputStream();
-                            byte[] buf = new byte[8192];
-                            int n;
-                            while ((n = is.read(buf)) > 0) bo.write(buf, 0, n);
-                            String json = new String(bo.toByteArray(), StandardCharsets.UTF_8);
-                            if (TodoStore.importJson(this, json)) {
-                                Toast.makeText(this, "已恢复", Toast.LENGTH_SHORT).show();
-                                tab = 0;
-                                render();
-                            } else {
-                                Toast.makeText(this, "文件格式不对，没有导入", Toast.LENGTH_LONG).show();
-                            }
-                        } catch (Exception e) {
-                            Toast.makeText(this, "读取失败：" + e.getMessage(), Toast.LENGTH_LONG).show();
+                .setMessage("导入会覆盖现有的所有待办，确定继续吗？")
+                .setPositiveButton("导入", (d, w) -> {
+                    try (InputStream is = getContentResolver().openInputStream(uri)) {
+                        ByteArrayOutputStream bo = new ByteArrayOutputStream();
+                        byte[] buf = new byte[8192];
+                        int n;
+                        while ((n = is.read(buf)) > 0) {
+                            bo.write(buf, 0, n);
                         }
-                    })
-                    .setNegativeButton("取消", null).show();
+                        String json = bo.toString(StandardCharsets.UTF_8);
+                        if (TodoStore.importJson(this, json)) {
+                            Toast.makeText(this, "已恢复", Toast.LENGTH_SHORT).show();
+                            tab = 0;
+                            render();
+                        } else {
+                            Toast.makeText(this, "文件格式不对，没有导入", Toast.LENGTH_LONG).show();
+                        }
+                    } catch (Exception e) {
+                        Toast.makeText(this, getString(R.string.import_read_failed, e.getMessage()),
+                            Toast.LENGTH_LONG).show();
+                    }
+                })
+                .setNegativeButton("取消", null).show();
         }
     }
 
@@ -1021,12 +1044,10 @@ public class MainActivity extends AppCompatActivity {
             .putInt("iv", num(etIv, 30, 5, 600))
             .putBoolean("on", true).apply();
 
-        if (Build.VERSION.SDK_INT >= 31) {
-            AlarmManager am = (AlarmManager) getSystemService(ALARM_SERVICE);
-            if (!am.canScheduleExactAlarms()) {
-                startActivity(new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
-                        Uri.parse("package:" + getPackageName())));
-            }
+        AlarmManager am = (AlarmManager) getSystemService(ALARM_SERVICE);
+        if (!am.canScheduleExactAlarms()) {
+            startActivity(new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                Uri.parse("package:" + getPackageName())));
         }
         refreshStatus(ReminderScheduler.scheduleNext(this, true));
     }
@@ -1042,12 +1063,12 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         if (!ReminderScheduler.enabled(this)) {
-            tvStatus.setText("提醒：已关闭");
+            tvStatus.setText(R.string.reminder_disabled);
         } else if (at > 0) {
-            tvStatus.setText("提醒：已开启，下一次 " +
-                    new SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(new Date(at)));
+            tvStatus.setText(getString(R.string.reminder_next,
+                new SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(new Date(at))));
         } else {
-            tvStatus.setText("提醒：已开启");
+            tvStatus.setText(R.string.reminder_enabled);
         }
     }
 }
