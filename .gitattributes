@@ -1,0 +1,4 @@
+*.java text eol=lf
+*.kts text eol=lf
+.editorconfig text eol=lf
+.idea/codeStyles/*.xml text eol=lf

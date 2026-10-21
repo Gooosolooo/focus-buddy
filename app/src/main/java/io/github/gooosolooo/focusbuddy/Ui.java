@@ -2,12 +2,12 @@ package io.github.gooosolooo.focusbuddy;
 
 import android.content.Context;
 import android.content.res.ColorStateList;
-import android.graphics.Typeface;
 import android.graphics.drawable.ClipDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.LayerDrawable;
 import android.graphics.drawable.RippleDrawable;
+import android.graphics.Typeface;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
@@ -19,9 +19,11 @@ import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
-/** 界面小工具：莫兰迪配色 + 圆角控件 */
+/**
+ * 界面小工具：莫兰迪配色 + 圆角控件
+ */
 final class Ui {
-    private Ui() { }
+    private Ui() {}
 
     static final int BG = 0xFFF2EFEA;     // 背景：暖灰
     static final int CARD = 0xFFFBFAF7;   // 卡片
@@ -55,7 +57,9 @@ final class Ui {
         t.setText(s);
         t.setTextSize(sp);
         t.setTextColor(color);
-        if (bold) t.setTypeface(null, Typeface.BOLD);
+        if (bold) {
+            t.setTypeface(null, Typeface.BOLD);
+        }
         return t;
     }
 
@@ -78,13 +82,17 @@ final class Ui {
         b.setMinimumWidth(0);
         b.setPadding(dp(c, 16), dp(c, 10), dp(c, 16), dp(c, 10));
         setFill(b, color);
-        if (l != null) b.setOnClickListener(l);
+        if (l != null) {
+            b.setOnClickListener(l);
+        }
         return b;
     }
 
-    /** 统一的无底色图标按钮，保留 48dp 点击区域及同色按压反馈。 */
+    /**
+     * 统一的无底色图标按钮，保留 48dp 点击区域及同色按压反馈。
+     */
     static ImageButton iconButton(Context context, int iconResource, int color, String description,
-            View.OnClickListener listener) {
+        View.OnClickListener listener) {
         ImageButton button = new ImageButton(context);
         button.setImageResource(iconResource);
         button.setImageTintList(ColorStateList.valueOf(color));
@@ -97,8 +105,8 @@ final class Ui {
         button.setOnClickListener(listener);
         button.setContentDescription(description);
         button.setBackground(new RippleDrawable(
-                ColorStateList.valueOf((color & 0x00FFFFFF) | 0x22000000),
-                null, round(0xFFFFFFFF, dp(context, 24))));
+            ColorStateList.valueOf((color & 0x00FFFFFF) | 0x22000000),
+            null, round(0xFFFFFFFF, dp(context, 24))));
         return button;
     }
 
@@ -120,7 +128,7 @@ final class Ui {
 
     static LinearLayout.LayoutParams lp(Context c, int topDp) {
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         p.topMargin = dp(c, topDp);
         return p;
     }
@@ -133,7 +141,9 @@ final class Ui {
         e.setTextColor(INK);
         e.setHintTextColor(0xFFB5ADA5);
         e.setSingleLine(true);
-        if (number) e.setInputType(InputType.TYPE_CLASS_NUMBER);
+        if (number) {
+            e.setInputType(InputType.TYPE_CLASS_NUMBER);
+        }
         GradientDrawable g = round(0xFFFFFFFF, dp(c, 12));
         g.setStroke(dp(c, 1), TRACK);
         e.setBackground(g);
@@ -141,7 +151,9 @@ final class Ui {
         return e;
     }
 
-    /** 圆角进度条 */
+    /**
+     * 圆角进度条
+     */
     static ProgressBar bar(Context c, int color) {
         ProgressBar pb = new ProgressBar(c, null, android.R.attr.progressBarStyleHorizontal);
         pb.setMax(100);

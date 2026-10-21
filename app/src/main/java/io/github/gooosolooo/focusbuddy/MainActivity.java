@@ -1,26 +1,25 @@
 package io.github.gooosolooo.focusbuddy;
 
-import android.Manifest;
 import android.app.AlarmManager;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
-import android.graphics.Paint;
+import android.content.SharedPreferences;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.Paint;
+import android.Manifest;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.text.TextUtils;
-import android.view.Gravity;
 import android.view.DragEvent;
+import android.view.Gravity;
 import android.view.MotionEvent;
-import android.view.ViewConfiguration;
 import android.view.View;
+import android.view.ViewConfiguration;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
@@ -34,6 +33,7 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
@@ -46,38 +46,59 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Date;
+import java.util.function.Consumer;
+import java.util.function.IntConsumer;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import java.util.function.Consumer;
-import java.util.function.IntConsumer;
 
 public class MainActivity extends AppCompatActivity {
     private static final int REQ_EXPORT = 11, REQ_IMPORT = 12;
-    /** 父卡片文字、进度条和统计区域之间的间距，单位 dp。 */
+    /**
+     * 父卡片文字、进度条和统计区域之间的间距，单位 dp。
+     */
     private static final int CARD_CONTENT_GAP_DP = 8;
-    /** 父卡片上下内边距，单位 dp；不影响子项目之间的间距。 */
+    /**
+     * 父卡片上下内边距，单位 dp；不影响子项目之间的间距。
+     */
     private static final int CARD_SECTION_GAP_DP = 16;
-    /** 父卡片文字行最小高度，单位 dp。 */
+    /**
+     * 父卡片文字行最小高度，单位 dp。
+     */
     private static final int CARD_TEXT_ROW_HEIGHT_DP = 24;
-    /** 父卡片进度条区域高度，单位 dp。 */
+    /**
+     * 父卡片进度条区域高度，单位 dp。
+     */
     private static final int CARD_PROGRESS_HEIGHT_DP = 20;
-    /** 子项目的水平内边距，单位 dp；只影响子项目，不影响父卡片。 */
+    /**
+     * 子项目的水平内边距，单位 dp；只影响子项目，不影响父卡片。
+     */
     private static final int SUB_ITEM_HORIZONTAL_PADDING_DP = 0;
-    /** 子项目的上下内边距，单位 dp。 */
+    /**
+     * 子项目的上下内边距，单位 dp。
+     */
     private static final int SUB_ITEM_VERTICAL_PADDING_DP = 8;
-    /** 相邻子项目及子项目与统计区域的间距，单位 dp。 */
+    /**
+     * 相邻子项目及子项目与统计区域的间距，单位 dp。
+     */
     private static final int SUB_ITEM_GAP_DP = 8;
-    /** 子项目文字行最小高度，单位 dp；右侧手柄仍保留 48dp 点击区域。 */
+    /**
+     * 子项目文字行最小高度，单位 dp；右侧手柄仍保留 48dp 点击区域。
+     */
     private static final int SUB_ITEM_TEXT_ROW_HEIGHT_DP = 24;
-    /** 子项目进度条区域高度，单位 dp。 */
+    /**
+     * 子项目进度条区域高度，单位 dp。
+     */
     private static final int SUB_ITEM_PROGRESS_HEIGHT_DP = 20;
-    /** 子项目文字区域与进度条区域的间距，单位 dp。 */
+    /**
+     * 子项目文字区域与进度条区域的间距，单位 dp。
+     */
     private static final int SUB_ITEM_CONTENT_GAP_DP = 8;
-    /** 相邻子项目之间的浅灰分隔线厚度，单位 dp。 */
+    /**
+     * 相邻子项目之间的浅灰分隔线厚度，单位 dp。
+     */
     private static final int SUB_ITEM_DIVIDER_HEIGHT_DP = 1;
 
     private int tab = 0;                                   // 0 待办 / 1 已完成 / 2 设置
@@ -113,7 +134,7 @@ public class MainActivity extends AppCompatActivity {
         TextView title = Ui.text(this, "FocusBuddy", 24, Ui.INK, true);
         toolbar.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         toolbar.addView(Ui.iconButton(this, R.drawable.ic_info, Ui.DEEP,
-                "操作指南", view -> OperationGuideView.show(this)));
+            "操作指南", view -> OperationGuideView.show(this)));
         root.addView(toolbar);
 
         LinearLayout tabs = Ui.row(this);
@@ -121,7 +142,10 @@ public class MainActivity extends AppCompatActivity {
         String[] names = {"待办", "已完成", "设置"};
         for (int i = 0; i < 3; i++) {
             final int idx = i;
-            Button b = Ui.button(this, names[i], Ui.SAND, v -> { tab = idx; render(); });
+            Button b = Ui.button(this, names[i], Ui.SAND, v -> {
+                tab = idx;
+                render();
+            });
             LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
             p.setMargins(Ui.dp(this, 4), 0, Ui.dp(this, 4), 0);
             tabs.addView(b, p);
@@ -146,7 +170,11 @@ public class MainActivity extends AppCompatActivity {
         // 从"开工核对"通知点进来：展开所有未归档的待办，方便一次拖完
         if (getIntent() != null && getIntent().getBooleanExtra("review", false)) {
             review = true;
-            for (Todo t : TodoStore.all(this)) if (t.completedAt == 0) expanded.add(t.id);
+            for (Todo t : TodoStore.all(this)) {
+                if (t.completedAt == 0) {
+                    expanded.add(t.id);
+                }
+            }
         }
         render();
     }
@@ -159,9 +187,13 @@ public class MainActivity extends AppCompatActivity {
         for (int i = 0; i < 3; i++) Ui.setFill(tabBtns[i], i == tab ? Ui.SAGE : Ui.SAND);
 
         body.removeAllViews();
-        if (tab == 0) renderTodos();
-        else if (tab == 1) renderDone();
-        else renderSettings();
+        if (tab == 0) {
+            renderTodos();
+        } else if (tab == 1) {
+            renderDone();
+        } else {
+            renderSettings();
+        }
         refreshTimerTodos();
     }
 
@@ -176,13 +208,13 @@ public class MainActivity extends AppCompatActivity {
         timerTodoSelector.setBackground(selectorBackground);
         timerTodoSelector.setPadding(0, 0, Ui.dp(this, 8), 0);
         timerTodoExpand = Ui.iconButton(this, R.drawable.ic_expand_down, Ui.DEEP,
-                "选择计时待办", view -> showTimerTodoChooser());
+            "选择计时待办", view -> showTimerTodoChooser());
         timerTodoSelector.addView(timerTodoExpand);
         timerTodoLabel = Ui.text(this, "暂无待办", 14, Ui.TITLE, false);
         timerTodoLabel.setSingleLine(true);
         timerTodoLabel.setEllipsize(TextUtils.TruncateAt.END);
         timerTodoSelector.addView(timerTodoLabel, new LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         timerTodoSelector.setOnClickListener(view -> showTimerTodoChooser());
         bar.addView(timerTodoSelector, new LinearLayout.LayoutParams(0, Ui.dp(this, 48), 1f));
         timerMinutes = Ui.button(this, String.valueOf(timerMinutesValue), Ui.BG,
@@ -197,7 +229,7 @@ public class MainActivity extends AppCompatActivity {
         unit.setPadding(Ui.dp(this, 4), 0, 0, 0);
         durationGroup.addView(unit);
         LinearLayout.LayoutParams durationParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         int componentSpacing = Ui.dp(this, 8);
         durationParams.setMargins(componentSpacing, 0, componentSpacing, 0);
         bar.addView(durationGroup, durationParams);
@@ -267,9 +299,9 @@ public class MainActivity extends AppCompatActivity {
         int[] location = new int[2];
         timerTodoSelector.getLocationOnScreen(location);
         int popupHeight = Math.min(Ui.dp(this, 48) * Math.min(choices.size(), 5),
-                Math.max(Ui.dp(this, 48), location[1] - visibleFrame.top));
+            Math.max(Ui.dp(this, 48), location[1] - visibleFrame.top));
         int popupWidth = Math.min(visibleFrame.width(),
-                Math.max(Ui.dp(this, 200), timerTodoSelector.getWidth()));
+            Math.max(Ui.dp(this, 200), timerTodoSelector.getWidth()));
         PopupWindow popup = new PopupWindow(list, popupWidth, popupHeight, true);
         popup.setBackgroundDrawable(Ui.round(Ui.CARD, Ui.dp(this, 12)));
         popup.setElevation(Ui.dp(this, 8));
@@ -314,8 +346,13 @@ public class MainActivity extends AppCompatActivity {
         if (review) {
             LinearLayout rc = Ui.card(this);
             rc.addView(Ui.text(this, "开工核对", 17, Ui.INK, true));
-            rc.addView(Ui.text(this, "拖一拖各个待办（或子项目）的进度条，对齐到现在的真实进度。已经替你存好了今天的起点快照。", 13, Ui.SUB, false), Ui.lp(this, 4));
-            rc.addView(Ui.button(this, "核对完了", Ui.SAGE, v -> { review = false; render(); }), Ui.lp(this, 10));
+            rc.addView(
+                Ui.text(this, "拖一拖各个待办（或子项目）的进度条，对齐到现在的真实进度。已经替你存好了今天的起点快照。", 13,
+                    Ui.SUB, false), Ui.lp(this, 4));
+            rc.addView(Ui.button(this, "核对完了", Ui.SAGE, v -> {
+                review = false;
+                render();
+            }), Ui.lp(this, 10));
             body.addView(rc, Ui.lp(this, 0));
         }
 
@@ -326,21 +363,26 @@ public class MainActivity extends AppCompatActivity {
         add.addView(et, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         Button ab = Ui.button(this, "添加", Ui.SAGE, v -> {
             String s = et.getText().toString().trim();
-            if (s.isEmpty()) return;
+            if (s.isEmpty()) {
+                return;
+            }
             Todo t = new Todo();
             t.title = s;
             TodoStore.all(this).add(0, t);
             TodoStore.save(this);
             render();
         });
-        LinearLayout.LayoutParams ap = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        LinearLayout.LayoutParams ap =
+            new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         ap.leftMargin = Ui.dp(this, 10);
         add.addView(ab, ap);
         body.addView(add, Ui.lp(this, review ? 12 : 0));
 
         boolean any = false;
         for (Todo t : new ArrayList<>(TodoStore.all(this))) {
-            if (t.completedAt > 0) continue;
+            if (t.completedAt > 0) {
+                continue;
+            }
             any = true;
             body.addView(todoCard(t), Ui.lp(this, 12));
         }
@@ -356,8 +398,11 @@ public class MainActivity extends AppCompatActivity {
         boolean open = expanded.contains(t.id);
         LinearLayout c = Ui.card(this);
         c.setPadding(Ui.dp(this, 16), Ui.dp(this, CARD_SECTION_GAP_DP),
-                Ui.dp(this, 16), Ui.dp(this, CARD_SECTION_GAP_DP));
-        c.setOnLongClickListener(v -> { confirmDeleteTodo(t); return true; });   // 长按：删除
+            Ui.dp(this, 16), Ui.dp(this, CARD_SECTION_GAP_DP));
+        c.setOnLongClickListener(v -> {
+            confirmDeleteTodo(t);
+            return true;
+        });   // 长按：删除
 
         LinearLayout head = Ui.row(this);
         head.setBaselineAligned(false);
@@ -369,20 +414,23 @@ public class MainActivity extends AppCompatActivity {
             TodoStore.save(this);
             render();
         }));
-        title.setOnLongClickListener(v -> { confirmDeleteTodo(t); return true; });
+        title.setOnLongClickListener(v -> {
+            confirmDeleteTodo(t);
+            return true;
+        });
         head.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         TextView pct = Ui.text(this, t.progress() + "%", 15, Ui.DEEP, true);
         pct.setIncludeFontPadding(false);
         head.addView(pct);
         ImageButton addSubButton = Ui.iconButton(this, R.drawable.ic_add, Ui.ACTION_BLUE,
-                "添加子项目", view -> showAddSubDialog(t));
+            "添加子项目", view -> showAddSubDialog(t));
         LinearLayout.LayoutParams addSubParams = new LinearLayout.LayoutParams(
-                Ui.dp(this, 48), Ui.dp(this, 48));
+            Ui.dp(this, 48), Ui.dp(this, 48));
         addSubParams.leftMargin = Ui.dp(this, 8);
         head.addView(addSubButton, addSubParams);
         ImageButton arrow = Ui.iconButton(this,
-                open ? R.drawable.ic_expand_down : R.drawable.ic_expand_right, Ui.DEEP,
-                open ? "收起待办详情" : "展开待办详情", view -> toggle(t));
+            open ? R.drawable.ic_expand_down : R.drawable.ic_expand_right, Ui.DEEP,
+            open ? "收起待办详情" : "展开待办详情", view -> toggle(t));
         arrow.setOnLongClickListener(view -> {
             confirmDeleteTodo(t);
             return true;
@@ -394,17 +442,17 @@ public class MainActivity extends AppCompatActivity {
         if (t.subs.isEmpty()) {
             // 没有子项目时直接编辑进度，10% 一档。
             progressArea.addView(seek(t.progress(), pct, val -> setTodoProgress(t, val)),
-                    new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                            Ui.dp(this, CARD_PROGRESS_HEIGHT_DP), Gravity.CENTER_VERTICAL));
+                new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    Ui.dp(this, CARD_PROGRESS_HEIGHT_DP), Gravity.CENTER_VERTICAL));
         } else {
             // 有子项目时显示汇总进度。
             ProgressBar pb = Ui.bar(this, Ui.SAGE);
             pb.setProgress(t.progress());
             progressArea.addView(pb, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                    Ui.dp(this, 8), Gravity.CENTER_VERTICAL));
+                Ui.dp(this, 8), Gravity.CENTER_VERTICAL));
         }
         LinearLayout.LayoutParams progressParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, CARD_PROGRESS_HEIGHT_DP));
+            ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, CARD_PROGRESS_HEIGHT_DP));
         progressParams.topMargin = Ui.dp(this, CARD_CONTENT_GAP_DP);
         c.addView(progressArea, progressParams);
 
@@ -473,12 +521,12 @@ public class MainActivity extends AppCompatActivity {
         item.setOrientation(LinearLayout.VERTICAL);
         item.setTag(s);
         item.setPadding(Ui.dp(this, SUB_ITEM_HORIZONTAL_PADDING_DP),
-                Ui.dp(this, SUB_ITEM_VERTICAL_PADDING_DP), Ui.dp(this, SUB_ITEM_HORIZONTAL_PADDING_DP),
-                Ui.dp(this, SUB_ITEM_VERTICAL_PADDING_DP));
+            Ui.dp(this, SUB_ITEM_VERTICAL_PADDING_DP), Ui.dp(this, SUB_ITEM_HORIZONTAL_PADDING_DP),
+            Ui.dp(this, SUB_ITEM_VERTICAL_PADDING_DP));
         View divider = new View(this);
         divider.setBackgroundColor(Ui.TRACK);
         LinearLayout.LayoutParams dividerParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, SUB_ITEM_DIVIDER_HEIGHT_DP));
+            ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, SUB_ITEM_DIVIDER_HEIGHT_DP));
         dividerParams.bottomMargin = Ui.dp(this, SUB_ITEM_CONTENT_GAP_DP);
         item.addView(divider, dividerParams);
         LinearLayout content = new LinearLayout(this);
@@ -500,16 +548,19 @@ public class MainActivity extends AppCompatActivity {
             TodoStore.save(this);
             render();
         }));
-        top.setOnLongClickListener(v -> { confirmDeleteSub(t, s); return true; });
+        top.setOnLongClickListener(v -> {
+            confirmDeleteSub(t, s);
+            return true;
+        });
         content.addView(top);
         LinearLayout.LayoutParams progressParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, SUB_ITEM_PROGRESS_HEIGHT_DP));
+            ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, SUB_ITEM_PROGRESS_HEIGHT_DP));
         progressParams.topMargin = Ui.dp(this, SUB_ITEM_CONTENT_GAP_DP);
         content.addView(seek(s.progress, sp, val -> setSubProgress(t, s, val)), progressParams);
         LinearLayout row = Ui.row(this);
         row.addView(content, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         ImageButton handle = Ui.iconButton(this, R.drawable.ic_drag_handle, Ui.SUB,
-                "长按上下拖动子项目调整顺序", null);
+            "长按上下拖动子项目调整顺序", null);
         handle.setOnLongClickListener(view -> {
             SubItemDragState state = new SubItemDragState(t, s, item);
             boolean started = view.startDragAndDrop(null, new View.DragShadowBuilder(item), state, 0);
@@ -532,7 +583,9 @@ public class MainActivity extends AppCompatActivity {
         updateSubItemDividers(c);
     }
 
-    /** 分隔线放在相邻同组子项目之间，不在分组首尾留下多余横线。 */
+    /**
+     * 分隔线放在相邻同组子项目之间，不在分组首尾留下多余横线。
+     */
     private void updateSubItemDividers(LinearLayout parent) {
         Todo.Sub previous = null;
         for (int index = 0; index < parent.getChildCount(); index++) {
@@ -552,9 +605,11 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    /** 拖动期间只更新同一完成分组的顺序，松手后统一保存，取消时恢复原顺序。 */
+    /**
+     * 拖动期间只更新同一完成分组的顺序，松手后统一保存，取消时恢复原顺序。
+     */
     private boolean handleSubItemDrag(LinearLayout parent, Todo todo, Todo.Sub target,
-            LinearLayout item, DragEvent event) {
+        LinearLayout item, DragEvent event) {
         if (!(event.getLocalState() instanceof SubItemDragState)) {
             return false;
         }
@@ -567,7 +622,7 @@ public class MainActivity extends AppCompatActivity {
                 return true;
             case DragEvent.ACTION_DRAG_LOCATION:
                 if (state.sub != target && todo.moveSubWithinGroup(state.sub, target,
-                        event.getY() > item.getHeight() / 2f)) {
+                    event.getY() > item.getHeight() / 2f)) {
                     int sourceIndex = parent.indexOfChild(state.item);
                     int targetIndex = parent.indexOfChild(item);
                     int destination = targetIndex + (event.getY() > item.getHeight() / 2f ? 1 : 0);
@@ -614,11 +669,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void toggle(Todo t) {
-        if (!expanded.add(t.id)) expanded.remove(t.id);
+        if (!expanded.add(t.id)) {
+            expanded.remove(t.id);
+        }
         render();
     }
 
-    /** 弹出输入框修改文字 */
+    /**
+     * 弹出输入框修改文字
+     */
     private void editText(String title, String current, Consumer<String> onSave) {
         EditText et = Ui.edit(this, "", current, false);
         et.setSelection(et.getText().length());
@@ -627,14 +686,16 @@ public class MainActivity extends AppCompatActivity {
         box.setPadding(pad, Ui.dp(this, 8), pad, 0);
         box.addView(et);
         new AlertDialog.Builder(this)
-                .setTitle(title)
-                .setView(box)
-                .setPositiveButton("保存", (d, w) -> {
-                    String txt = et.getText().toString().trim();
-                    if (!txt.isEmpty()) onSave.accept(txt);
-                })
-                .setNegativeButton("取消", null)
-                .show();
+            .setTitle(title)
+            .setView(box)
+            .setPositiveButton("保存", (d, w) -> {
+                String txt = et.getText().toString().trim();
+                if (!txt.isEmpty()) {
+                    onSave.accept(txt);
+                }
+            })
+            .setNegativeButton("取消", null)
+            .show();
     }
 
     private void confirmDeleteTodo(Todo t) {
@@ -655,7 +716,9 @@ public class MainActivity extends AppCompatActivity {
                 .setNegativeButton("取消", null).show();
     }
 
-    /** 10% 一档的滑块：拖动中只更新数字，松手才提交 */
+    /**
+     * 10% 一档的滑块：拖动中只更新数字，松手才提交
+     */
     private SeekBar seek(int pct, TextView label, IntConsumer onCommit) {
         SeekBar sb = new SeekBar(this);
         sb.setMax(10);
@@ -678,15 +741,23 @@ public class MainActivity extends AppCompatActivity {
                     grabbed[0] = Math.abs(e.getX() - thumbCx) <= grabRange;
                     moved[0] = false;
                     downX[0] = e.getX();
-                    if (grabbed[0] && v.getParent() != null) v.getParent().requestDisallowInterceptTouchEvent(true);
+                    if (grabbed[0] && v.getParent() != null) {
+                        v.getParent().requestDisallowInterceptTouchEvent(true);
+                    }
                     return !grabbed[0];          // 没按到圆点：吞掉这次触摸，不改进度
                 }
                 case MotionEvent.ACTION_MOVE:
-                    if (!grabbed[0]) return true;
-                    if (Math.abs(e.getX() - downX[0]) > slop) moved[0] = true;
+                    if (!grabbed[0]) {
+                        return true;
+                    }
+                    if (Math.abs(e.getX() - downX[0]) > slop) {
+                        moved[0] = true;
+                    }
                     return false;                // 按住圆点：交给 SeekBar 正常拖动
                 case MotionEvent.ACTION_UP:
-                    if (!grabbed[0]) return true;
+                    if (!grabbed[0]) {
+                        return true;
+                    }
                     if (!moved[0]) {             // 只是轻点圆点、没拖动：当作取消，避免跳档
                         MotionEvent cancel = MotionEvent.obtain(e);
                         cancel.setAction(MotionEvent.ACTION_CANCEL);
@@ -703,22 +774,32 @@ public class MainActivity extends AppCompatActivity {
             @Override public void onProgressChanged(SeekBar s, int p, boolean fromUser) {
                 if (fromUser && label != null) label.setText((p * 10) + "%");
             }
-            @Override public void onStartTrackingTouch(SeekBar s) { }
-            @Override public void onStopTrackingTouch(SeekBar s) { onCommit.accept(s.getProgress() * 10); }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar s) {}
+
+            @Override
+            public void onStopTrackingTouch(SeekBar s) {
+                onCommit.accept(s.getProgress() * 10);
+            }
         });
         return sb;
     }
 
     private void setTodoProgress(Todo t, int val) {
         int prev = t.progress;
-        if (val == prev) return;
+        if (val == prev) {
+            return;
+        }
         t.progress = val;
         afterChange(t, () -> t.progress = prev);
     }
 
     private void setSubProgress(Todo t, Todo.Sub s, int val) {
         int prev = s.progress;
-        if (val == prev) return;
+        if (val == prev) {
+            return;
+        }
         s.progress = val;
         afterChange(t, () -> s.progress = prev);
     }
@@ -729,19 +810,21 @@ public class MainActivity extends AppCompatActivity {
         afterChange(t, () -> t.subs.add(Math.min(idx, t.subs.size()), s));
     }
 
-    /** 进度变化后统一处理：保存；到 100% 就归档，并给几秒钟的"撤销" */
+    /**
+     * 进度变化后统一处理：保存；到 100% 就归档，并给几秒钟的"撤销"
+     */
     private void afterChange(Todo t, Runnable undo) {
         if (t.progress() == 100) {
             t.completedAt = System.currentTimeMillis();
             TodoStore.save(this);
             render();
             Snackbar.make(findViewById(android.R.id.content), "🎉 已归档到【已完成】", Snackbar.LENGTH_LONG)
-                    .setAction("撤销", v -> {
-                        undo.run();
-                        t.completedAt = 0;
-                        TodoStore.save(this);
-                        render();
-                    }).show();
+                .setAction("撤销", v -> {
+                    undo.run();
+                    t.completedAt = 0;
+                    TodoStore.save(this);
+                    render();
+                }).show();
         } else {
             TodoStore.save(this);
             render();
@@ -771,8 +854,13 @@ public class MainActivity extends AppCompatActivity {
             LinearLayout r = Ui.row(this);
             r.addView(Ui.button(this, "恢复到待办", Ui.SAGE, v -> {
                 t.completedAt = 0;
-                if (t.subs.isEmpty()) t.progress = 0;
-                else for (Todo.Sub s : t.subs) s.progress = 0;   // 恢复时进度清零
+                if (t.subs.isEmpty()) {
+                    t.progress = 0;
+                } else {
+                    for (Todo.Sub s : t.subs) {
+                        s.progress = 0;   // 恢复时进度清零
+                    }
+                }
                 TodoStore.save(this);
                 render();
             }));
@@ -797,13 +885,15 @@ public class MainActivity extends AppCompatActivity {
     private void renderSettings() {
         LinearLayout rc = Ui.card(this);
         rc.addView(Ui.text(this, "时段提醒", 18, Ui.INK, true));
-        rc.addView(Ui.text(this, "每天时段开始的那一刻，会自动记录各待办的进度快照，并提醒你核对。", 13, Ui.SUB, false), Ui.lp(this, 4));
+        rc.addView(Ui.text(this, "每天时段开始的那一刻，会自动记录各待办的进度快照，并提醒你核对。", 13, Ui.SUB, false),
+            Ui.lp(this, 4));
         SharedPreferences p = ReminderScheduler.prefs(this);
         etStart = labeledEdit(rc, "开始（整点，0-23）", String.valueOf(p.getInt("sh", 14)));
         etEnd = labeledEdit(rc, "结束（整点，0-23）", String.valueOf(p.getInt("eh", 17)));
         etIv = labeledEdit(rc, "每隔几分钟提醒一次", String.valueOf(p.getInt("iv", 30)));
 
-        LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        LinearLayout.LayoutParams bp =
+            new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         bp.leftMargin = Ui.dp(this, 8);
         LinearLayout row1 = Ui.row(this);
         row1.addView(Ui.button(this, "保存并开启", Ui.SAGE, v -> enable()));
@@ -826,7 +916,9 @@ public class MainActivity extends AppCompatActivity {
 
         LinearLayout bc = Ui.card(this);
         bc.addView(Ui.text(this, "备份与恢复", 18, Ui.INK, true));
-        bc.addView(Ui.text(this, "把所有待办（含子项目、已完成、每日快照）导出成一个 .json 文件，存到你选的位置。换手机或误删后，可以导入恢复。", 13, Ui.SUB, false), Ui.lp(this, 6));
+        bc.addView(Ui.text(this,
+            "把所有待办（含子项目、已完成、每日快照）导出成一个 .json 文件，存到你选的位置。换手机或误删后，可以导入恢复。", 13,
+            Ui.SUB, false), Ui.lp(this, 6));
         LinearLayout br = Ui.row(this);
         br.addView(Ui.button(this, "导出备份", Ui.BLUE, v -> doExport()));
         br.addView(Ui.button(this, "导入恢复", Ui.ROSE, v -> doImport()), bp);
@@ -847,7 +939,7 @@ public class MainActivity extends AppCompatActivity {
         i.addCategory(Intent.CATEGORY_OPENABLE);
         i.setType("application/json");
         i.putExtra(Intent.EXTRA_TITLE, "focusbuddy-backup-" +
-                new SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(new Date()) + ".json");
+            new SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(new Date()) + ".json");
         startActivityForResult(i, REQ_EXPORT);
     }
 
@@ -861,7 +953,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int req, int res, Intent data) {
         super.onActivityResult(req, res, data);
-        if (res != RESULT_OK || data == null || data.getData() == null) return;
+        if (res != RESULT_OK || data == null || data.getData() == null) {
+            return;
+        }
         Uri uri = data.getData();
 
         if (req == REQ_EXPORT) {
@@ -901,7 +995,7 @@ public class MainActivity extends AppCompatActivity {
         if (!Settings.canDrawOverlays(this)) {
             Toast.makeText(this, "请先允许“显示在其他应用的上层”，然后回来再点一次", Toast.LENGTH_LONG).show();
             startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:" + getPackageName())));
+                Uri.parse("package:" + getPackageName())));
             return;
         }
         Intent i = new Intent(this, FloatingTimerService.class);
@@ -922,10 +1016,10 @@ public class MainActivity extends AppCompatActivity {
 
     private void enable() {
         ReminderScheduler.prefs(this).edit()
-                .putInt("sh", num(etStart, 14, 0, 23))
-                .putInt("eh", num(etEnd, 17, 0, 23))
-                .putInt("iv", num(etIv, 30, 5, 600))
-                .putBoolean("on", true).apply();
+            .putInt("sh", num(etStart, 14, 0, 23))
+            .putInt("eh", num(etEnd, 17, 0, 23))
+            .putInt("iv", num(etIv, 30, 5, 600))
+            .putBoolean("on", true).apply();
 
         if (Build.VERSION.SDK_INT >= 31) {
             AlarmManager am = (AlarmManager) getSystemService(ALARM_SERVICE);
@@ -944,7 +1038,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void refreshStatus(long at) {
-        if (tvStatus == null) return;
+        if (tvStatus == null) {
+            return;
+        }
         if (!ReminderScheduler.enabled(this)) {
             tvStatus.setText("提醒：已关闭");
         } else if (at > 0) {

@@ -1,14 +1,16 @@
 package io.github.gooosolooo.focusbuddy;
 
-import org.junit.Test;
-
-import java.util.Arrays;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/** 验证排序只影响当前完成分组，不改变进度和另一分组的位置。 */
+import java.util.Arrays;
+
+import org.junit.Test;
+
+/**
+ * 验证排序只影响当前完成分组，不改变进度和另一分组的位置。
+ */
 public class TodoSubOrderTest {
     @Test
     public void movingUnfinishedPreservesCompletedSlotsAndProgress() {

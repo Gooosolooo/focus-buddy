@@ -2,9 +2,6 @@ package io.github.gooosolooo.focusbuddy;
 
 import android.content.Context;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
-
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -17,11 +14,18 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-/** 待办 + 每日进度快照，存成 app 私有目录里的一个 JSON 文件；备份就是导出这个 JSON */
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+/**
+ * 待办 + 每日进度快照，存成 app 私有目录里的一个 JSON 文件；备份就是导出这个 JSON
+ */
 public class TodoStore {
     private static final String FILE = "todos.json";
 
-    /** 某一天"开工时刻"的进度快照：待办 id -> 进度 */
+    /**
+     * 某一天"开工时刻"的进度快照：待办 id -> 进度
+     */
     static class Snap {
         String date;       // yyyy-MM-dd
         long time;
@@ -41,7 +45,7 @@ public class TodoStore {
         ensure(c);
         try (FileOutputStream out = c.openFileOutput(FILE, Context.MODE_PRIVATE)) {
             out.write(toJsonString().getBytes(StandardCharsets.UTF_8));
-        } catch (Exception ignored) { }
+        } catch (Exception ignored) {}
     }
 
     // ---------- 快照 ----------
@@ -52,28 +56,50 @@ public class TodoStore {
     static synchronized boolean hasSnapshotToday(Context c) {
         ensure(c);
         String d = todayStr();
-        for (Snap s : snaps) if (s.date.equals(d)) return true;
+        for (Snap s : snaps) {
+            if (s.date.equals(d)) {
+                return true;
+            }
+        }
         return false;
     }
 
-    /** 记录"此刻"所有未归档待办的进度；同一天重复调用会覆盖当天那份 */
+    /**
+     * 记录"此刻"所有未归档待办的进度；同一天重复调用会覆盖当天那份
+     */
     static synchronized void takeSnapshot(Context c) {
         ensure(c);
         Snap s = new Snap();
         s.date = todayStr();
         s.time = System.currentTimeMillis();
-        for (Todo t : cache) if (t.completedAt == 0) s.p.put(t.id, t.progress());
-        for (int i = snaps.size() - 1; i >= 0; i--) if (snaps.get(i).date.equals(s.date)) snaps.remove(i);
+        for (Todo t : cache) {
+            if (t.completedAt == 0) {
+                s.p.put(t.id, t.progress());
+            }
+        }
+        for (int i = snaps.size() - 1; i >= 0; i--) {
+            if (snaps.get(i).date.equals(s.date)) {
+                snaps.remove(i);
+            }
+        }
         snaps.add(s);
-        while (snaps.size() > 120) snaps.remove(0);
+        while (snaps.size() > 120) {
+            snaps.remove(0);
+        }
         save(c);
     }
 
-    /** 今天开工时这条待办的进度；没有快照（或待办是今天新建的）返回 null */
+    /**
+     * 今天开工时这条待办的进度；没有快照（或待办是今天新建的）返回 null
+     */
     static synchronized Integer todayBase(Context c, String todoId) {
         ensure(c);
         String d = todayStr();
-        for (Snap s : snaps) if (s.date.equals(d)) return s.p.get(todoId);
+        for (Snap s : snaps) {
+            if (s.date.equals(d)) {
+                return s.p.get(todoId);
+            }
+        }
         return null;
     }
 
@@ -83,7 +109,9 @@ public class TodoStore {
         return toJsonString();
     }
 
-    /** 导入并覆盖；格式不对返回 false，原数据不动。兼容没有 snapshots 的旧备份 */
+    /**
+     * 导入并覆盖；格式不对返回 false，原数据不动。兼容没有 snapshots 的旧备份
+     */
     static synchronized boolean importJson(Context c, String json) {
         try {
             List<Todo> newTodos = new ArrayList<>();
@@ -103,21 +131,27 @@ public class TodoStore {
 
     // ---------- 内部 ----------
     private static void ensure(Context c) {
-        if (cache != null) return;
+        if (cache != null) {
+            return;
+        }
         cache = new ArrayList<>();
         snaps = new ArrayList<>();
         try (FileInputStream in = c.openFileInput(FILE)) {
             ByteArrayOutputStream bo = new ByteArrayOutputStream();
             byte[] buf = new byte[8192];
             int n;
-            while ((n = in.read(buf)) > 0) bo.write(buf, 0, n);
+            while ((n = in.read(buf)) > 0) {
+                bo.write(buf, 0, n);
+            }
             parse(new String(bo.toByteArray(), StandardCharsets.UTF_8), cache, snaps);
-        } catch (Exception ignored) { }   // 第一次运行没有文件
+        } catch (Exception ignored) {}   // 第一次运行没有文件
     }
 
     private static String toJsonString() throws Exception {
         JSONArray todos = new JSONArray();
-        for (Todo t : cache) todos.put(t.toJson());
+        for (Todo t : cache) {
+            todos.put(t.toJson());
+        }
         JSONArray sn = new JSONArray();
         for (Snap s : snaps) {
             JSONObject so = new JSONObject();
@@ -144,7 +178,9 @@ public class TodoStore {
     private static void parse(String json, List<Todo> outTodos, List<Snap> outSnaps) throws Exception {
         JSONObject root = new JSONObject(json);
         JSONArray arr = root.getJSONArray("todos");
-        for (int i = 0; i < arr.length(); i++) outTodos.add(Todo.fromJson(arr.getJSONObject(i)));
+        for (int i = 0; i < arr.length(); i++) {
+            outTodos.add(Todo.fromJson(arr.getJSONObject(i)));
+        }
         JSONArray sn = root.optJSONArray("snapshots");
         if (sn != null) {
             for (int i = 0; i < sn.length(); i++) {

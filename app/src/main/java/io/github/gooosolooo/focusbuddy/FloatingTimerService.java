@@ -7,8 +7,8 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
 import android.content.res.ColorStateList;
-import android.graphics.PixelFormat;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.PixelFormat;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
@@ -23,7 +23,9 @@ import android.widget.TextView;
 
 import androidx.core.app.NotificationCompat;
 
-/** 悬浮窗进度条：前台服务 + WindowManager 叠加层 */
+/**
+ * 悬浮窗进度条：前台服务 + WindowManager 叠加层
+ */
 public class FloatingTimerService extends Service {
     static final String EXTRA_TITLE = "title";
     static final String EXTRA_TOTAL = "total";
@@ -39,17 +41,24 @@ public class FloatingTimerService extends Service {
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable tick = new Runnable() {
-        @Override public void run() {
+        @Override
+        public void run() {
             update();
             handler.postDelayed(this, 1000);
         }
     };
 
-    @Override public IBinder onBind(Intent i) { return null; }
+    @Override
+    public IBinder onBind(Intent i) {
+        return null;
+    }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent == null) { stopSelf(); return START_NOT_STICKY; }
+        if (intent == null) {
+            stopSelf();
+            return START_NOT_STICKY;
+        }
         String title = intent.getStringExtra(EXTRA_TITLE);
         totalMs = intent.getLongExtra(EXTRA_TOTAL, 60 * 60000L);
         startAt = System.currentTimeMillis();   // 开始计时的时刻
@@ -70,15 +79,15 @@ public class FloatingTimerService extends Service {
             nm.createNotificationChannel(new NotificationChannel(CH, "悬浮计时", NotificationManager.IMPORTANCE_LOW));
         }
         PendingIntent open = PendingIntent.getActivity(this, 3,
-                new Intent(this, MainActivity.class),
-                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+            new Intent(this, MainActivity.class),
+            PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
         Notification n = new NotificationCompat.Builder(this, CH)
-                .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-                .setContentTitle("悬浮计时进行中")
-                .setContentText("点这里回到 app")
-                .setOngoing(true)
-                .setContentIntent(open)
-                .build();
+            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setContentTitle("悬浮计时进行中")
+            .setContentText("点这里回到 app")
+            .setOngoing(true)
+            .setContentIntent(open)
+            .build();
         if (Build.VERSION.SDK_INT >= 34) {
             startForeground(NOTI_ID, n, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
         } else {
@@ -86,7 +95,9 @@ public class FloatingTimerService extends Service {
         }
     }
 
-    private int dp(int v) { return (int) (v * getResources().getDisplayMetrics().density); }
+    private int dp(int v) {
+        return (int) (v * getResources().getDisplayMetrics().density);
+    }
 
     private void buildOverlay() {
         wm = (WindowManager) getSystemService(WINDOW_SERVICE);
@@ -121,7 +132,7 @@ public class FloatingTimerService extends Service {
         bar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         bar.setMax(1000);
         LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(8));
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(8));
         blp.topMargin = dp(8);
         root.addView(bar, blp);
 
@@ -132,23 +143,29 @@ public class FloatingTimerService extends Service {
         root.addView(tvTime);
 
         int type = Build.VERSION.SDK_INT >= 26
-                ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                : WindowManager.LayoutParams.TYPE_PHONE;
+            ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            : WindowManager.LayoutParams.TYPE_PHONE;
         lp = new WindowManager.LayoutParams(dp(220),
-                WindowManager.LayoutParams.WRAP_CONTENT, type,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-                PixelFormat.TRANSLUCENT);
+            WindowManager.LayoutParams.WRAP_CONTENT, type,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            PixelFormat.TRANSLUCENT);
         lp.gravity = Gravity.TOP | Gravity.START;
         lp.x = dp(24);
         lp.y = dp(160);
 
         // 拖动
         root.setOnTouchListener(new View.OnTouchListener() {
-            int x0, y0; float tx, ty;
-            @Override public boolean onTouch(View v, MotionEvent e) {
+            int x0, y0;
+            float tx, ty;
+
+            @Override
+            public boolean onTouch(View v, MotionEvent e) {
                 switch (e.getAction()) {
                     case MotionEvent.ACTION_DOWN:
-                        x0 = lp.x; y0 = lp.y; tx = e.getRawX(); ty = e.getRawY();
+                        x0 = lp.x;
+                        y0 = lp.y;
+                        tx = e.getRawX();
+                        ty = e.getRawY();
                         return true;
                     case MotionEvent.ACTION_MOVE:
                         lp.x = x0 + (int) (e.getRawX() - tx);
@@ -183,7 +200,9 @@ public class FloatingTimerService extends Service {
     public void onDestroy() {
         handler.removeCallbacks(tick);
         if (root != null && wm != null) {
-            try { wm.removeView(root); } catch (Exception ignored) { }
+            try {
+                wm.removeView(root);
+            } catch (Exception ignored) {}
             root = null;
         }
         super.onDestroy();

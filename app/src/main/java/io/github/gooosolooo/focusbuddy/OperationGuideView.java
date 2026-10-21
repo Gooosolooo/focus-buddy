@@ -11,7 +11,9 @@ import android.widget.TextView;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 
-/** 按需打开的操作指南面板，操作名称与说明分列显示。 */
+/**
+ * 按需打开的操作指南面板，操作名称与说明分列显示。
+ */
 final class OperationGuideView extends LinearLayout {
     private OperationGuideView(Context context, Runnable onClose) {
         super(context);
@@ -27,7 +29,7 @@ final class OperationGuideView extends LinearLayout {
 
         LinearLayout header = Ui.row(context);
         header.addView(Ui.text(context, "操作指南", 20, Ui.TITLE, true),
-                new LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            new LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         header.addView(Ui.button(context, "关闭", Ui.SAND, view -> onClose.run()));
         addView(header, Ui.lp(context, 16));
 
@@ -67,7 +69,7 @@ final class OperationGuideView extends LinearLayout {
         int availableHeight = context.getResources().getDisplayMetrics().heightPixels;
         int panelHeight = Math.min(Ui.dp(context, 600), availableHeight * 3 / 4);
         dialog.setContentView(guide, new ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, panelHeight));
+            ViewGroup.LayoutParams.MATCH_PARENT, panelHeight));
         dialog.getBehavior().setState(BottomSheetBehavior.STATE_EXPANDED);
         dialog.show();
     }

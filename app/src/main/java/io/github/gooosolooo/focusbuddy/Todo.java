@@ -1,17 +1,17 @@
 package io.github.gooosolooo.focusbuddy;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 /**
  * 一条待办。规则：只有"最小一级"的项目可以直接编辑进度。
- *  - 没有子项目：用自己的 progress（0~100，以 10 为一档）
- *  - 有子项目：进度 = 所有子项目进度的平均值（只读）
+ * - 没有子项目：用自己的 progress（0~100，以 10 为一档）
+ * - 有子项目：进度 = 所有子项目进度的平均值（只读）
  */
 public class Todo {
     public String id = UUID.randomUUID().toString();
@@ -37,7 +37,7 @@ public class Todo {
      */
     boolean moveSubWithinGroup(Sub moving, Sub target, boolean after) {
         if (moving == target || !subs.contains(moving) || !subs.contains(target)
-                || (moving.progress >= 100) != (target.progress >= 100)) {
+            || (moving.progress >= 100) != (target.progress >= 100)) {
             return false;
         }
         List<Sub> group = new ArrayList<>();
@@ -61,18 +61,30 @@ public class Todo {
         return true;
     }
 
-    /** 对外展示的进度 */
+    /**
+     * 对外展示的进度
+     */
     public int progress() {
-        if (subs.isEmpty()) return progress;
+        if (subs.isEmpty()) {
+            return progress;
+        }
         int sum = 0;
-        for (Sub s : subs) sum += s.progress;
+        for (Sub s : subs) {
+            sum += s.progress;
+        }
         return Math.round((float) sum / subs.size());
     }
 
-    /** 已经 100% 的子项目个数 */
+    /**
+     * 已经 100% 的子项目个数
+     */
     public int doneCount() {
         int d = 0;
-        for (Sub s : subs) if (s.progress >= 100) d++;
+        for (Sub s : subs) {
+            if (s.progress >= 100) {
+                d++;
+            }
+        }
         return d;
     }
 
@@ -95,7 +107,9 @@ public class Todo {
         return o;
     }
 
-    /** 兼容旧版数据：旧版只有 done（true/false），转成 100 / 0 */
+    /**
+     * 兼容旧版数据：旧版只有 done（true/false），转成 100 / 0
+     */
     static Todo fromJson(JSONObject o) throws JSONException {
         Todo t = new Todo();
         t.id = o.optString("id", t.id);
