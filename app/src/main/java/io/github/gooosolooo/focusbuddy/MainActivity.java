@@ -1,5 +1,6 @@
 package io.github.gooosolooo.focusbuddy;
 
+import android.annotation.SuppressLint;
 import android.app.AlarmManager;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -335,7 +336,7 @@ public class MainActivity extends AppCompatActivity {
         list.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, titles) {
             @NonNull
             @Override
-            public View getView(int position, View convertView, ViewGroup parent) {
+            public View getView(int position, View convertView, @NonNull ViewGroup parent) {
                 TextView label = (TextView) super.getView(position, convertView, parent);
                 label.setTextSize(14);
                 label.setTextColor(Ui.TITLE);
@@ -700,6 +701,7 @@ public class MainActivity extends AppCompatActivity {
     /**
      * 10% 一档的滑块：拖动中只更新数字，松手才提交
      */
+    @SuppressLint("ClickableViewAccessibility")
     private SeekBar seek(int pct, TextView label, IntConsumer onCommit) {
         SeekBar sb = new SeekBar(this);
         sb.setMax(10);
@@ -978,7 +980,7 @@ public class MainActivity extends AppCompatActivity {
         list.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, values) {
             @NonNull
             @Override
-            public View getView(int position, View convertView, ViewGroup parent) {
+            public View getView(int position, View convertView, @NonNull ViewGroup parent) {
                 TextView label = (TextView) super.getView(position, convertView, parent);
                 label.setGravity(Gravity.CENTER);
                 label.setTextColor(Ui.INK);
@@ -1064,6 +1066,7 @@ public class MainActivity extends AppCompatActivity {
 
         if (req == REQ_EXPORT) {
             try (OutputStream os = getContentResolver().openOutputStream(uri)) {
+                assert os != null;
                 os.write(TodoStore.exportJson(this).getBytes(StandardCharsets.UTF_8));
                 Toast.makeText(this, "备份成功", Toast.LENGTH_SHORT).show();
             } catch (Exception e) {
@@ -1077,7 +1080,10 @@ public class MainActivity extends AppCompatActivity {
                         ByteArrayOutputStream bo = new ByteArrayOutputStream();
                         byte[] buf = new byte[8192];
                         int n;
-                        while ((n = is.read(buf)) > 0) {
+                        while (true) {
+                            assert is != null;
+                            if (!((n = is.read(buf)) > 0))
+                                break;
                             bo.write(buf, 0, n);
                         }
                         String json = bo.toString(StandardCharsets.UTF_8);

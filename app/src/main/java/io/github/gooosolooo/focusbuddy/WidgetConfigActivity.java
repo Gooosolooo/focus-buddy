@@ -11,6 +11,7 @@ import android.widget.Spinner;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.graphics.Insets;
@@ -37,7 +38,7 @@ public class WidgetConfigActivity extends AppCompatActivity {
         setResult(RESULT_CANCELED);
         widgetId = getIntent().getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,
             AppWidgetManager.INVALID_APPWIDGET_ID);
-        if (!WidgetSupport.isOwned(this, widgetId)) {
+        if (WidgetSupport.isInvalidWidget(this, widgetId)) {
             finish();
             return;
         }
@@ -107,7 +108,7 @@ public class WidgetConfigActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onSaveInstanceState(Bundle state) {
+    protected void onSaveInstanceState(@NonNull Bundle state) {
         super.onSaveInstanceState(state);
         int selected = todoSelector == null ? -1 : todoSelector.getSelectedItemPosition();
         state.putString("selected_todo", selected >= 0 && selected < choices.size()

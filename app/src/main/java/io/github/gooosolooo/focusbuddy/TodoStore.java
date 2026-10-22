@@ -144,7 +144,7 @@ public class TodoStore {
             while ((n = in.read(buf)) > 0) {
                 bo.write(buf, 0, n);
             }
-            parse(new String(bo.toByteArray(), StandardCharsets.UTF_8), cache, snaps);
+            parse(bo.toString(StandardCharsets.UTF_8), cache, snaps);
         } catch (Exception ignored) {}   // 第一次运行没有文件
     }
 

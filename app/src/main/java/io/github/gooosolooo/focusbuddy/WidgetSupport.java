@@ -24,9 +24,10 @@ final class WidgetSupport {
         return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
-    static boolean isOwned(Context context, int widgetId) {
+    /** 判断组件是否不存在或不属于本应用的单项进度组件。 */
+    static boolean isInvalidWidget(Context context, int widgetId) {
         AppWidgetProviderInfo info = AppWidgetManager.getInstance(context).getAppWidgetInfo(widgetId);
-        return info != null && info.provider.equals(new ComponentName(context, ProgressWidgetProvider.class));
+        return info == null || !info.provider.equals(new ComponentName(context, ProgressWidgetProvider.class));
     }
 
     static String todoId(Context context, int widgetId) {
@@ -94,7 +95,7 @@ final class WidgetSupport {
     }
 
     static void update(Context context, int widgetId) {
-        if (!isOwned(context, widgetId)) {
+        if (isInvalidWidget(context, widgetId)) {
             return;
         }
         Todo todo = findTodo(context, todoId(context, widgetId));

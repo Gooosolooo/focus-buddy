@@ -1,5 +1,6 @@
 package io.github.gooosolooo.focusbuddy;
 
+import android.annotation.SuppressLint;
 import android.graphics.drawable.Drawable;
 import android.view.HapticFeedbackConstants;
 import android.view.MotionEvent;
@@ -9,6 +10,8 @@ import android.view.ViewParent;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+
+import androidx.annotation.NonNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -51,6 +54,7 @@ final class SubItemDragController implements View.OnTouchListener {
     private ScrollView scrollView;
     private boolean dragging;
 
+    @SuppressLint("ClickableViewAccessibility")
     SubItemDragController(LinearLayout parent, LinearLayout item, Todo.Sub sub,
         ImageButton handle, OrderListener listener) {
         this.parent = parent;
@@ -65,10 +69,10 @@ final class SubItemDragController implements View.OnTouchListener {
         });
         handle.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
             @Override
-            public void onViewAttachedToWindow(View view) {}
+            public void onViewAttachedToWindow(@NonNull View view) {}
 
             @Override
-            public void onViewDetachedFromWindow(View view) {
+            public void onViewDetachedFromWindow(@NonNull View view) {
                 finishDrag(false);
             }
         });

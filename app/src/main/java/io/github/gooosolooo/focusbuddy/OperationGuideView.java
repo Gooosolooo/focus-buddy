@@ -1,5 +1,6 @@
 package io.github.gooosolooo.focusbuddy;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.view.Gravity;
 import android.view.View;
@@ -14,6 +15,7 @@ import com.google.android.material.bottomsheet.BottomSheetDialog;
 /**
  * 按需打开的操作指南面板，操作名称与说明分列显示。
  */
+@SuppressLint("ViewConstructor")
 final class OperationGuideView extends LinearLayout {
     private OperationGuideView(Context context, Runnable onClose) {
         super(context);

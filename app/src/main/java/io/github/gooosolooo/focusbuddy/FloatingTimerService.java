@@ -1,5 +1,6 @@
 package io.github.gooosolooo.focusbuddy;
 
+import android.annotation.SuppressLint;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -77,9 +78,7 @@ public class FloatingTimerService extends Service {
 
     private void startAsForeground() {
         NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        if (Build.VERSION.SDK_INT >= 26) {
-            nm.createNotificationChannel(new NotificationChannel(CH, "悬浮计时", NotificationManager.IMPORTANCE_LOW));
-        }
+        nm.createNotificationChannel(new NotificationChannel(CH, "悬浮计时", NotificationManager.IMPORTANCE_LOW));
         PendingIntent open = PendingIntent.getActivity(this, 3,
             new Intent(this, MainActivity.class),
             PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
@@ -90,17 +89,14 @@ public class FloatingTimerService extends Service {
             .setOngoing(true)
             .setContentIntent(open)
             .build();
-        if (Build.VERSION.SDK_INT >= 34) {
-            startForeground(NOTI_ID, n, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
-        } else {
-            startForeground(NOTI_ID, n);
-        }
+        startForeground(NOTI_ID, n, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
     }
 
     private int dp(int v) {
         return (int) (v * getResources().getDisplayMetrics().density);
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     private void buildOverlay() {
         wm = (WindowManager) getSystemService(WINDOW_SERVICE);
 
@@ -144,9 +140,7 @@ public class FloatingTimerService extends Service {
         tvTime.setPadding(0, dp(6), 0, 0);
         root.addView(tvTime);
 
-        int type = Build.VERSION.SDK_INT >= 26
-            ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-            : WindowManager.LayoutParams.TYPE_PHONE;
+        int type = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
         lp = new WindowManager.LayoutParams(dp(220),
             WindowManager.LayoutParams.WRAP_CONTENT, type,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
