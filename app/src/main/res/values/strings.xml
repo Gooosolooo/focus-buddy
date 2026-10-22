@@ -33,7 +33,7 @@
     <string name="cancel_setting">取消</string>
     <string name="subitem_drag_description">长按左侧手柄，上下拖动子项目调整顺序</string>
     <string name="guide_subitem_reorder">长按子项目左侧三杠手柄，整条项目只沿竖直方向移动；松手保存，已完成和未完成分别排序。</string>
-    <string name="guide_reminder_settings">在设置页单击开始时间、结束时间或提醒间隔，在下拉列表选择数字，或输入数字后按键盘完成，再保存并开启。</string>
+    <string name="guide_reminder_settings">在设置页单击时间数值，通过下拉列表选择或输入数字后保存并开启。开工弹窗可确认进入核对，或稍后 10 分钟再次提醒；休息弹窗确认后启动 5 分钟悬浮计时。</string>
     <string name="time_dropdown_description">单击展开时间下拉列表，也可输入数字</string>
     <string name="time_input_hint">输入数字，按完成应用</string>
     <string name="time_input_range">请输入 %1$d～%2$d 之间的数字</string>
@@ -49,4 +49,13 @@
     <string name="widget_save">保存小组件</string>
     <string name="widget_preview_percent">40%</string>
     <string name="guide_desktop_widgets">长按手机桌面，添加宽 2 格、高 1 格的单项进度组件。添加时选择绑定的待办；点击组件进入对应待办，长按组件可重新配置。</string>
+    <string name="reminder_channel_name">待办提醒</string>
+    <string name="reminder_review_title">每日开工核对</string>
+    <string name="reminder_review_message">请核对各待办的进度。\n稍后提醒：将在 10 分钟后再次提醒。</string>
+    <string name="reminder_rest_title">休息提醒</string>
+    <string name="reminder_confirm">确认</string>
+    <string name="reminder_snooze">稍后提醒</string>
+    <string name="reminder_rest_timer_title">休息一下</string>
+    <string name="reminder_overlay_required">请允许“显示在其他应用上层”，用于提醒弹窗和休息悬浮计时。</string>
+    <string name="reminder_test_rest">测试休息提醒</string>
 </resources>

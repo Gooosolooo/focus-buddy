@@ -15,6 +15,7 @@ public class BootReceiver extends BroadcastReceiver {
         }
         if (ReminderScheduler.enabled(c)) {
             ReminderScheduler.scheduleNext(c, false);
+            ReminderScheduler.restoreReviewSnooze(c);
         }
     }
 }

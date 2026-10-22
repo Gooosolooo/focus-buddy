@@ -24,6 +24,8 @@ import android.widget.TextView;
  */
 final class Ui {
     private Ui() {}
+    /** 应用卡片与弹窗面板共用的圆角半径，单位 dp。 */
+    static final int CARD_CORNER_RADIUS_DP = 18;
 
     static final int BG = 0xFFF2EFEA;     // 背景：暖灰
     static final int CARD = 0xFFFBFAF7;   // 卡片
@@ -114,7 +116,7 @@ final class Ui {
         LinearLayout l = new LinearLayout(c);
         l.setOrientation(LinearLayout.VERTICAL);
         l.setPadding(dp(c, 16), dp(c, 14), dp(c, 16), dp(c, 14));
-        l.setBackground(round(CARD, dp(c, 18)));
+        l.setBackground(round(CARD, dp(c, CARD_CORNER_RADIUS_DP)));
         l.setElevation(dp(c, 1));
         return l;
     }

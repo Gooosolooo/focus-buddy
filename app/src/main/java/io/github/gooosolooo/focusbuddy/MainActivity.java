@@ -34,7 +34,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
 
@@ -56,6 +55,8 @@ import java.util.Set;
 
 public class MainActivity extends AppCompatActivity {
     private static final int REQ_EXPORT = 11, REQ_IMPORT = 12;
+    /** 开启弹窗提醒前申请悬浮窗权限的请求码。 */
+    private static final int REQ_REMINDER_OVERLAY = 13;
     /**
      * 父卡片文字、进度条和统计区域之间的间距，单位 dp。
      */
@@ -176,15 +177,7 @@ public class MainActivity extends AppCompatActivity {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1);
         }
 
-        // 从"开工核对"通知点进来：展开所有未归档的待办，方便一次拖完
-        if (getIntent() != null && getIntent().getBooleanExtra("review", false)) {
-            review = true;
-            for (Todo t : TodoStore.all(this)) {
-                if (t.completedAt == 0) {
-                    expanded.add(t.id);
-                }
-            }
-        }
+        applyReviewIntent(getIntent());
         render();
         openWidgetTodo(getIntent());
     }
@@ -193,7 +186,25 @@ public class MainActivity extends AppCompatActivity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
+        if (applyReviewIntent(intent)) {
+            render();
+        }
         openWidgetTodo(intent);
+    }
+
+    /** 无论应用是否已经打开，确认开工核对后均进入待办页并展开未归档项目。 */
+    private boolean applyReviewIntent(Intent intent) {
+        if (intent == null || !intent.getBooleanExtra(ReminderScheduler.EXTRA_REVIEW, false)) {
+            return false;
+        }
+        tab = 0;
+        review = true;
+        for (Todo todo : TodoStore.all(this)) {
+            if (todo.completedAt == 0) {
+                expanded.add(todo.id);
+            }
+        }
+        return true;
     }
 
     /** 从桌面组件进入时展开对应待办，并将其滚动到可见区域。 */
@@ -355,7 +366,7 @@ public class MainActivity extends AppCompatActivity {
         int popupWidth = Math.min(visibleFrame.width(),
             Math.max(Ui.dp(this, 200), timerTodoSelector.getWidth()));
         PopupWindow popup = new PopupWindow(list, popupWidth, popupHeight, true);
-        popup.setBackgroundDrawable(Ui.round(Ui.CARD, Ui.dp(this, 12)));
+        popup.setBackgroundDrawable(Ui.round(Ui.CARD, Ui.dp(this, Ui.CARD_CORNER_RADIUS_DP)));
         popup.setElevation(Ui.dp(this, 8));
         popup.setOutsideTouchable(true);
         popup.setInputMethodMode(PopupWindow.INPUT_METHOD_NOT_NEEDED);
@@ -386,7 +397,7 @@ public class MainActivity extends AppCompatActivity {
             rc.addView(
                 Ui.text(this, "拖一拖各个待办（或子项目）的进度条，对齐到现在的真实进度。已经替你存好了今天的起点快照。", 13,
                     Ui.SUB, false), Ui.lp(this, 4));
-            rc.addView(Ui.button(this, "核对完了", Ui.SAGE, v -> {
+            rc.addView(Ui.button(this, "核对完毕", Ui.SAGE, v -> {
                 review = false;
                 render();
             }), Ui.lp(this, 10));
@@ -663,13 +674,9 @@ public class MainActivity extends AppCompatActivity {
     private void editText(String title, String current, Consumer<String> onSave) {
         EditText et = Ui.edit(this, "", current, false);
         et.setSelection(et.getText().length());
-        FrameLayout box = new FrameLayout(this);
-        int pad = Ui.dp(this, 20);
-        box.setPadding(pad, Ui.dp(this, 8), pad, 0);
-        box.addView(et);
-        new AlertDialog.Builder(this)
+        new AppDialog.Builder(this)
             .setTitle(title)
-            .setView(box)
+            .setView(et)
             .setPositiveButton("保存", (d, w) -> {
                 String txt = et.getText().toString().trim();
                 if (!txt.isEmpty()) {
@@ -681,8 +688,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void confirmDeleteTodo(Todo t) {
-        new AlertDialog.Builder(this)
+        new AppDialog.Builder(this)
             .setMessage(getString(R.string.confirm_delete_todo, t.title))
+            .setPositiveButtonColor(Ui.ROSE)
             .setPositiveButton("删除", (d, w) -> {
                 TodoStore.all(this).remove(t);
                 TodoStore.save(this);
@@ -692,8 +700,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void confirmDeleteSub(Todo t, Todo.Sub sub) {
-        new AlertDialog.Builder(this)
+        new AppDialog.Builder(this)
             .setMessage(getString(R.string.confirm_delete_subitem, sub.text))
+            .setPositiveButtonColor(Ui.ROSE)
             .setPositiveButton("删除", (d, w) -> removeSub(t, sub))
             .setNegativeButton("取消", null).show();
     }
@@ -858,8 +867,9 @@ public class MainActivity extends AppCompatActivity {
                 render();
             }));
             Button del = Ui.button(this, "删除", Ui.ROSE, v ->
-                new AlertDialog.Builder(this)
+                new AppDialog.Builder(this)
                     .setMessage(getString(R.string.confirm_delete_completed_todo, t.title))
+                    .setPositiveButtonColor(Ui.ROSE)
                     .setPositiveButton("删除", (d, w) -> {
                         TodoStore.all(this).remove(t);
                         TodoStore.save(this);
@@ -902,7 +912,8 @@ public class MainActivity extends AppCompatActivity {
         rc.addView(row1, Ui.lp(this, 14));
 
         LinearLayout row2 = Ui.row(this);
-        row2.addView(Ui.button(this, "测试通知", Ui.MAUVE, v -> ReminderScheduler.notifyNow(this)));
+        row2.addView(Ui.button(this, getString(R.string.reminder_test_rest), Ui.MAUVE,
+            v -> ReminderScheduler.notifyNow(this)));
         row2.addView(Ui.button(this, "模拟开工核对", Ui.MAUVE, v -> {
             TodoStore.takeSnapshot(this);
             ReminderScheduler.notifyNow(this, true);
@@ -1001,7 +1012,7 @@ public class MainActivity extends AppCompatActivity {
         int height = Math.min(Ui.dp(this, 280), Math.max(Ui.dp(this, 96), available));
         int width = Math.min(frame.width(), Math.max(anchor.getWidth(), Ui.dp(this, 144)));
         PopupWindow popup = new PopupWindow(container, width, height, true);
-        popup.setBackgroundDrawable(Ui.round(Ui.CARD, Ui.dp(this, 8)));
+        popup.setBackgroundDrawable(Ui.round(Ui.CARD, Ui.dp(this, Ui.CARD_CORNER_RADIUS_DP)));
         popup.setElevation(Ui.dp(this, 4));
         popup.setOutsideTouchable(true);
         popup.setInputMethodMode(PopupWindow.INPUT_METHOD_NEEDED);
@@ -1059,6 +1070,18 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int req, int res, Intent data) {
         super.onActivityResult(req, res, data);
+        if (req == REQ_REMINDER_OVERLAY) {
+            if (Settings.canDrawOverlays(this)) {
+                SharedPreferences settings = ReminderScheduler.prefs(this);
+                reminderStartHour = settings.getInt("sh", ReminderScheduler.DEFAULT_START_HOUR);
+                reminderEndHour = settings.getInt("eh", ReminderScheduler.DEFAULT_END_HOUR);
+                reminderIntervalMinutes = settings.getInt("iv", ReminderScheduler.DEFAULT_INTERVAL_MINUTES);
+                enable();
+            } else {
+                Toast.makeText(this, R.string.reminder_overlay_required, Toast.LENGTH_LONG).show();
+            }
+            return;
+        }
         if (res != RESULT_OK || data == null || data.getData() == null) {
             return;
         }
@@ -1073,7 +1096,7 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(this, getString(R.string.backup_failed, e.getMessage()), Toast.LENGTH_LONG).show();
             }
         } else if (req == REQ_IMPORT) {
-            new AlertDialog.Builder(this)
+            new AppDialog.Builder(this)
                 .setMessage("导入会覆盖现有的所有待办，确定继续吗？")
                 .setPositiveButton("导入", (d, w) -> {
                     try (InputStream is = getContentResolver().openInputStream(uri)) {
@@ -1122,7 +1145,14 @@ public class MainActivity extends AppCompatActivity {
         ReminderScheduler.prefs(this).edit()
             .putInt("sh", reminderStartHour)
             .putInt("eh", reminderEndHour)
-            .putInt("iv", reminderIntervalMinutes)
+            .putInt("iv", reminderIntervalMinutes).apply();
+        if (!Settings.canDrawOverlays(this)) {
+            Toast.makeText(this, R.string.reminder_overlay_required, Toast.LENGTH_LONG).show();
+            startActivityForResult(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:" + getPackageName())), REQ_REMINDER_OVERLAY);
+            return;
+        }
+        ReminderScheduler.prefs(this).edit()
             .putBoolean("on", true).apply();
 
         AlarmManager am = (AlarmManager) getSystemService(ALARM_SERVICE);

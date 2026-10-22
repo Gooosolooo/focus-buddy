@@ -2,6 +2,7 @@ package io.github.gooosolooo.focusbuddy;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.graphics.Color;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -20,8 +21,8 @@ final class OperationGuideView extends LinearLayout {
     private OperationGuideView(Context context, Runnable onClose) {
         super(context);
         setOrientation(VERTICAL);
-        setPadding(Ui.dp(context, 20), Ui.dp(context, 12), Ui.dp(context, 20), Ui.dp(context, 24));
-        setBackground(Ui.round(Ui.CARD, Ui.dp(context, 24)));
+        setPadding(Ui.dp(context, 24), Ui.dp(context, 12), Ui.dp(context, 24), Ui.dp(context, 24));
+        setBackground(Ui.round(Ui.CARD, Ui.dp(context, Ui.CARD_CORNER_RADIUS_DP)));
 
         View handle = new View(context);
         handle.setBackground(Ui.round(Ui.TRACK, Ui.dp(context, 2)));
@@ -76,5 +77,9 @@ final class OperationGuideView extends LinearLayout {
             ViewGroup.LayoutParams.MATCH_PARENT, panelHeight));
         dialog.getBehavior().setState(BottomSheetBehavior.STATE_EXPANDED);
         dialog.show();
+        View sheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
+        if (sheet != null) {
+            sheet.setBackgroundColor(Color.TRANSPARENT);
+        }
     }
 }

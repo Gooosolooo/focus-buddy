@@ -30,6 +30,14 @@
         </activity>
 
         <activity
+            android:name=".ReminderDialogActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.FocusBuddy.ReminderDialog" />
+
+        <activity
             android:name=".WidgetConfigActivity"
             android:exported="true"
             android:label="@string/widget_config_title">
