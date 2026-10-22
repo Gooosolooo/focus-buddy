@@ -38,4 +38,15 @@
     <string name="time_input_hint">输入数字，按完成应用</string>
     <string name="time_input_range">请输入 %1$d～%2$d 之间的数字</string>
     <string name="reminder_break_message">休息一下！起来活动一下~喝点水~</string>
+    <string name="widget_progress_name">单项进度</string>
+    <string name="widget_progress_description">宽 2 格、高 1 格，展示一项待办的标题和进度，点击进入待办。</string>
+    <string name="widget_choose_todo">点击选择待办</string>
+    <string name="widget_completed_title">%1$s（已完成，点击重选）</string>
+    <string name="widget_config_title">设置桌面小组件</string>
+    <string name="widget_config_todo">选择待办</string>
+    <string name="widget_no_todos">暂无未完成待办，请先在应用中添加。</string>
+    <string name="widget_manage_todos">打开待办列表</string>
+    <string name="widget_save">保存小组件</string>
+    <string name="widget_preview_percent">40%</string>
+    <string name="guide_desktop_widgets">长按手机桌面，添加宽 2 格、高 1 格的单项进度组件。添加时选择绑定的待办；点击组件进入对应待办，长按组件可重新配置。</string>
 </resources>

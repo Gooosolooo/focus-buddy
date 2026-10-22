@@ -185,6 +185,39 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         render();
+        openWidgetTodo(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        openWidgetTodo(intent);
+    }
+
+    /** 从桌面组件进入时展开对应待办，并将其滚动到可见区域。 */
+    private void openWidgetTodo(Intent intent) {
+        String todoId = intent.getStringExtra(WidgetSupport.EXTRA_TODO_ID);
+        if (todoId == null) {
+            return;
+        }
+        intent.removeExtra(WidgetSupport.EXTRA_TODO_ID);
+        Todo todo = WidgetSupport.findTodo(this, todoId);
+        if (todo == null) {
+            return;
+        }
+        tab = todo.completedAt > 0 ? 1 : 0;
+        expanded.add(todoId);
+        render();
+        body.post(() -> {
+            for (int index = 0; index < body.getChildCount(); index++) {
+                View child = body.getChildAt(index);
+                if (todoId.equals(child.getTag())) {
+                    ((ScrollView) body.getParent()).smoothScrollTo(0, child.getTop());
+                    break;
+                }
+            }
+        });
     }
 
     // ================= 总渲染 =================
@@ -213,6 +246,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private View createTimerBar() {
+        timerMinutesValue = WidgetSupport.lastMinutes(this);
+        timerTodoId = WidgetSupport.lastTodoId(this);
         LinearLayout bar = Ui.row(this);
         bar.setBaselineAligned(false);
         bar.setPadding(Ui.dp(this, 12), Ui.dp(this, 8), Ui.dp(this, 12), Ui.dp(this, 8));
@@ -326,6 +361,7 @@ public class MainActivity extends AppCompatActivity {
         list.setOnItemClickListener((parent, view, position, id) -> {
             Todo todo = choices.get(position);
             timerTodoId = todo.id;
+            WidgetSupport.rememberTodo(this, todo.id);
             timerTodoLabel.setText(todo.title);
             popup.dismiss();
         });
@@ -336,6 +372,7 @@ public class MainActivity extends AppCompatActivity {
     private void showTimerMinutesPicker() {
         showTimeDropdown(timerMinutes, timerMinutesValue, 1, 24 * 60, true, value -> {
             timerMinutesValue = value;
+            WidgetSupport.rememberMinutes(this, value);
             timerMinutes.setText(getString(R.string.timer_minutes_value, value));
         });
     }
@@ -396,6 +433,7 @@ public class MainActivity extends AppCompatActivity {
     private View todoCard(Todo t) {
         boolean open = expanded.contains(t.id);
         LinearLayout c = Ui.card(this);
+        c.setTag(t.id);
         c.setPadding(Ui.dp(this, 16), Ui.dp(this, CARD_SECTION_GAP_DP),
             Ui.dp(this, 16), Ui.dp(this, CARD_SECTION_GAP_DP));
         c.setOnLongClickListener(v -> {

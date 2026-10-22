@@ -47,6 +47,7 @@ final class OperationGuideView extends LinearLayout {
             {"删除项目", "长按待办或子项目标题，确认后删除。"},
             {"调整顺序", context.getString(R.string.guide_subitem_reorder)},
             {"时段提醒", context.getString(R.string.guide_reminder_settings)},
+            {"桌面组件", context.getString(R.string.guide_desktop_widgets)},
             {"自动归档", "待办进度达到 100% 后移入“已完成”页。"}
         };
         for (String[] instruction : instructions) {

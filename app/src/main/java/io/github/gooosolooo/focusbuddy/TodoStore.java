@@ -46,6 +46,7 @@ public class TodoStore {
         try (FileOutputStream out = c.openFileOutput(FILE, Context.MODE_PRIVATE)) {
             out.write(toJsonString().getBytes(StandardCharsets.UTF_8));
         } catch (Exception ignored) {}
+        WidgetSupport.updateAll(c);
     }
 
     // ---------- 快照 ----------
