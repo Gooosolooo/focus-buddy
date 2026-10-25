@@ -34,9 +34,9 @@ public class ReminderScheduler {
     /** 未保存提醒间隔时使用的默认分钟数。 */
     static final int DEFAULT_INTERVAL_MINUTES = 60;
     /** 提醒间隔允许的最小分钟数。 */
-    static final int MIN_INTERVAL_MINUTES = 5;
+    static final int MIN_INTERVAL_MINUTES = 10;
     /** 提醒间隔允许的最大分钟数。 */
-    static final int MAX_INTERVAL_MINUTES = 600;
+    static final int MAX_INTERVAL_MINUTES = 120;
     static final String CHANNEL = "reminder";
 
     static SharedPreferences prefs(Context c) {

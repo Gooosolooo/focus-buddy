@@ -80,11 +80,11 @@ public class MainActivity extends AppCompatActivity {
     /**
      * 子项目的上下内边距，单位 dp。
      */
-    private static final int SUB_ITEM_VERTICAL_PADDING_DP = 8;
+    private static final int SUB_ITEM_VERTICAL_PADDING_DP = 6;
     /**
      * 相邻子项目及子项目与统计区域的间距，单位 dp。
      */
-    private static final int SUB_ITEM_GAP_DP = 8;
+    private static final int SUB_ITEM_GAP_DP = 6;
     /**
      * 子项目文字行最小高度，单位 dp；左侧手柄仍保留 48dp 点击区域。
      */
@@ -96,7 +96,15 @@ public class MainActivity extends AppCompatActivity {
     /**
      * 子项目文字区域与进度条区域的间距，单位 dp。
      */
-    private static final int SUB_ITEM_CONTENT_GAP_DP = 8;
+    private static final int SUB_ITEM_CONTENT_GAP_DP = 6;
+    /**
+     * 子项目上方分隔线与文字区域的间距，单位 dp。
+     */
+    private static final int SUB_ITEM_TOP_DIVIDER_GAP_DP = 12;
+    /**
+     * 分组末项进度条区域与下方分隔线的间距，单位 dp；与相邻子项目的双侧内边距一致。
+     */
+    private static final int SUB_ITEM_BOTTOM_DIVIDER_GAP_DP = 12;
     /**
      * 相邻子项目之间的浅灰分隔线厚度，单位 dp。
      */
@@ -109,6 +117,14 @@ public class MainActivity extends AppCompatActivity {
      * 设置页时间数值框的浅灰底色。
      */
     private static final int REMINDER_VALUE_BACKGROUND = 0xFFF0F0F0;
+    /**
+     * 分钟选择列表的步长，单位为分钟。
+     */
+    private static final int TIMER_MINUTES_PICKER_STEP_SIZE = 10;
+    /**
+     * 小时选择列表的步长，单位为小时。
+     */
+    private static final int REMINDER_HOUR_PICKER_STEP_SIZE = 1;
 
     private int tab = 0;                                   // 0 待办 / 1 已完成 / 2 设置
     private boolean review = false;                        // 是否处于"开工核对"模式
@@ -382,7 +398,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showTimerMinutesPicker() {
-        showTimeDropdown(timerMinutes, timerMinutesValue, 1, 24 * 60, true, value -> {
+        // 悬浮计时最多2h
+        showTimeDropdown(timerMinutes, timerMinutesValue, TIMER_MINUTES_PICKER_STEP_SIZE, 2 * 60,
+            TIMER_MINUTES_PICKER_STEP_SIZE, true, value -> {
             timerMinutesValue = value;
             WidgetSupport.rememberMinutes(this, value);
             timerMinutes.setText(getString(R.string.timer_minutes_value, value));
@@ -580,7 +598,7 @@ public class MainActivity extends AppCompatActivity {
         divider.setBackgroundColor(Ui.TRACK);
         LinearLayout.LayoutParams dividerParams = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, SUB_ITEM_DIVIDER_HEIGHT_DP));
-        dividerParams.bottomMargin = Ui.dp(this, SUB_ITEM_CONTENT_GAP_DP);
+        dividerParams.bottomMargin = Ui.dp(this, SUB_ITEM_TOP_DIVIDER_GAP_DP);
         item.addView(divider, dividerParams);
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
@@ -623,7 +641,7 @@ public class MainActivity extends AppCompatActivity {
         bottomDivider.setBackgroundColor(Ui.TRACK);
         LinearLayout.LayoutParams bottomDividerParams = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, SUB_ITEM_DIVIDER_HEIGHT_DP));
-        bottomDividerParams.topMargin = Ui.dp(this, SUB_ITEM_CONTENT_GAP_DP);
+        bottomDividerParams.topMargin = Ui.dp(this, SUB_ITEM_BOTTOM_DIVIDER_GAP_DP);
         item.addView(bottomDivider, bottomDividerParams);
         new SubItemDragController(c, item, s, handle, (target, after) -> {
             if (t.moveSubWithinGroup(s, target, after)) {
@@ -896,12 +914,15 @@ public class MainActivity extends AppCompatActivity {
         reminderEndHour = p.getInt("eh", ReminderScheduler.DEFAULT_END_HOUR);
         reminderIntervalMinutes = p.getInt("iv", ReminderScheduler.DEFAULT_INTERVAL_MINUTES);
         addReminderSetting(rc, R.string.reminder_start_time, R.string.reminder_hour_unit,
-            R.string.reminder_start_time, reminderStartHour, 0, 23, value -> reminderStartHour = value);
+            R.string.reminder_start_time, reminderStartHour, 0, 23, REMINDER_HOUR_PICKER_STEP_SIZE,
+            value -> reminderStartHour = value);
         addReminderSetting(rc, R.string.reminder_end_time, R.string.reminder_hour_unit,
-            R.string.reminder_end_time, reminderEndHour, 0, 23, value -> reminderEndHour = value);
+            R.string.reminder_end_time, reminderEndHour, 0, 23, REMINDER_HOUR_PICKER_STEP_SIZE,
+            value -> reminderEndHour = value);
         addReminderSetting(rc, R.string.reminder_every, R.string.reminder_minutes_suffix,
             R.string.reminder_interval_title, reminderIntervalMinutes, ReminderScheduler.MIN_INTERVAL_MINUTES,
-            ReminderScheduler.MAX_INTERVAL_MINUTES, value -> reminderIntervalMinutes = value);
+            ReminderScheduler.MAX_INTERVAL_MINUTES, TIMER_MINUTES_PICKER_STEP_SIZE,
+            value -> reminderIntervalMinutes = value);
 
         LinearLayout.LayoutParams bp =
             new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -940,7 +961,7 @@ public class MainActivity extends AppCompatActivity {
 
     /** 标题列固定为四个汉字宽，数值框紧接标题列并保持右边缘对齐。 */
     private void addReminderSetting(LinearLayout parent, int labelResource, int suffixResource,
-        int titleResource, int currentValue, int minimum, int maximum, IntConsumer onConfirm) {
+        int titleResource, int currentValue, int minimum, int maximum, int stepSize, IntConsumer onConfirm) {
         LinearLayout row = Ui.row(this);
         row.setBaselineAligned(false);
         TextView label = Ui.text(this, getString(labelResource), 14, Ui.INK, false);
@@ -956,7 +977,7 @@ public class MainActivity extends AppCompatActivity {
         valueButton.setContentDescription(getString(titleResource));
         int[] selectedValue = {currentValue};
         valueButton.setOnClickListener(view -> showTimeDropdown(valueButton,
-            selectedValue[0], minimum, maximum, false, value -> {
+            selectedValue[0], minimum, maximum, stepSize, false, value -> {
                 selectedValue[0] = value;
                 valueButton.setText(getString(R.string.reminder_setting_value, value));
                 onConfirm.accept(value);
@@ -971,7 +992,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /** 在数值控件旁展开列表；底栏向上展开，输入数字后按键盘完成即可应用。 */
-    private void showTimeDropdown(View anchor, int value, int minimum, int maximum, boolean above,
+    private void showTimeDropdown(View anchor, int value, int minimum, int maximum, int stepSize, boolean above,
         IntConsumer onConfirm) {
         LinearLayout container = new LinearLayout(this);
         container.setOrientation(LinearLayout.VERTICAL);
@@ -983,9 +1004,18 @@ public class MainActivity extends AppCompatActivity {
         input.setSelectAllOnFocus(true);
         container.addView(input, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 48)));
+        List<Integer> selectableValues = new ArrayList<>();
         List<String> values = new ArrayList<>();
-        for (int number = minimum; number <= maximum; number++) {
+        int selectedPosition = 0;
+        long nearestDistance = Long.MAX_VALUE;
+        for (int number = minimum; number <= maximum; number += stepSize) {
+            selectableValues.add(number);
             values.add(getString(R.string.reminder_setting_value, number));
+            long distance = Math.abs((long) number - value);
+            if (distance < nearestDistance) {
+                nearestDistance = distance;
+                selectedPosition = selectableValues.size() - 1;
+            }
         }
         ListView list = new ListView(this);
         list.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, values) {
@@ -995,7 +1025,8 @@ public class MainActivity extends AppCompatActivity {
                 TextView label = (TextView) super.getView(position, convertView, parent);
                 label.setGravity(Gravity.CENTER);
                 label.setTextColor(Ui.INK);
-                label.setBackgroundColor(position + minimum == value ? REMINDER_VALUE_BACKGROUND : Ui.CARD);
+                label.setBackgroundColor(selectableValues.get(position) == value
+                    ? REMINDER_VALUE_BACKGROUND : Ui.CARD);
                 return label;
             }
         });
@@ -1025,7 +1056,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
         list.setOnItemClickListener((parent, view, position, id) -> {
-            onConfirm.accept(minimum + position);
+            onConfirm.accept(selectableValues.get(position));
             popup.dismiss();
         });
         input.setOnEditorActionListener((view, action, event) -> {
@@ -1047,7 +1078,7 @@ public class MainActivity extends AppCompatActivity {
         });
         container.requestFocus();
         popup.showAsDropDown(anchor, 0, openAbove ? -anchor.getHeight() - height : 0);
-        list.setSelection(Math.max(0, Math.min(maximum - minimum, value - minimum)));
+        list.setSelection(selectedPosition);
     }
 
     // ================= 备份 =================
