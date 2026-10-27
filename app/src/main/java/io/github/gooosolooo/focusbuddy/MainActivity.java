@@ -2,6 +2,7 @@ package io.github.gooosolooo.focusbuddy;
 
 import android.annotation.SuppressLint;
 import android.app.AlarmManager;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
@@ -13,6 +14,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -44,6 +46,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.function.Consumer;
@@ -57,6 +60,8 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQ_EXPORT = 11, REQ_IMPORT = 12;
     /** 开启弹窗提醒前申请悬浮窗权限的请求码。 */
     private static final int REQ_REMINDER_OVERLAY = 13;
+    /** 自动备份目录的系统选择请求码。 */
+    private static final int REQ_BACKUP_DIRECTORY = 14;
     /**
      * 父卡片文字、进度条和统计区域之间的间距，单位 dp。
      */
@@ -416,6 +421,7 @@ public class MainActivity extends AppCompatActivity {
                 Ui.text(this, "拖一拖各个待办（或子项目）的进度条，对齐到现在的真实进度。已经替你存好了今天的起点快照。", 13,
                     Ui.SUB, false), Ui.lp(this, 4));
             rc.addView(Ui.button(this, "核对完毕", Ui.SAGE, v -> {
+                backupAfterReview();
                 review = false;
                 render();
             }), Ui.lp(this, 10));
@@ -956,6 +962,13 @@ public class MainActivity extends AppCompatActivity {
         br.addView(Ui.button(this, "导出备份", Ui.BLUE, v -> doExport()));
         br.addView(Ui.button(this, "导入恢复", Ui.ROSE, v -> doImport()), bp);
         bc.addView(br, Ui.lp(this, 12));
+        bc.addView(Ui.text(this, getString(R.string.daily_backup_directory), 15, Ui.INK, true),
+            Ui.lp(this, 16));
+        bc.addView(Ui.text(this, DailyBackup.directoryLabel(this), 13, Ui.SUB, false), Ui.lp(this, 6));
+        bc.addView(Ui.text(this, getString(R.string.daily_backup_description), 13, Ui.SUB, false),
+            Ui.lp(this, 6));
+        bc.addView(Ui.button(this, getString(R.string.daily_backup_choose_directory), Ui.BLUE,
+            view -> chooseBackupDirectory()), Ui.lp(this, 8));
         body.addView(bc, Ui.lp(this, 12));
     }
 
@@ -1082,6 +1095,44 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // ================= 备份 =================
+    private void chooseBackupDirectory() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        startActivityForResult(intent, REQ_BACKUP_DIRECTORY);
+    }
+
+    /** 点击核对完毕时捕获数据，文件写入和清理放在后台串行执行。 */
+    private void backupAfterReview() {
+        Uri directory = DailyBackup.directory(this);
+        if (directory == null) {
+            Toast.makeText(this, R.string.daily_backup_missing_directory, Toast.LENGTH_LONG).show();
+            return;
+        }
+        try {
+            String json = TodoStore.exportJson(this);
+            LocalDate date = LocalDate.now();
+            Context context = getApplicationContext();
+            DailyBackup.execute(() -> {
+                try {
+                    boolean cleaned = DailyBackup.write(context, directory, json, date);
+                    runOnUiThread(() -> Toast.makeText(context, cleaned
+                        ? R.string.daily_backup_success : R.string.daily_backup_cleanup_failed,
+                        Toast.LENGTH_LONG).show());
+                } catch (Exception exception) {
+                    Log.e("DailyBackup", "每日自动备份失败", exception);
+                    runOnUiThread(() -> Toast.makeText(context,
+                        getString(R.string.daily_backup_failed, exception.getMessage()),
+                        Toast.LENGTH_LONG).show());
+                }
+            });
+        } catch (Exception exception) {
+            Log.e("DailyBackup", "无法准备每日备份", exception);
+            Toast.makeText(this, getString(R.string.daily_backup_failed, exception.getMessage()),
+                Toast.LENGTH_LONG).show();
+        }
+    }
+
     private void doExport() {
         Intent i = new Intent(Intent.ACTION_CREATE_DOCUMENT);
         i.addCategory(Intent.CATEGORY_OPENABLE);
@@ -1117,6 +1168,18 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         Uri uri = data.getData();
+
+        if (req == REQ_BACKUP_DIRECTORY) {
+            try {
+                DailyBackup.setDirectory(this, uri);
+                render();
+                Toast.makeText(this, R.string.daily_backup_directory_saved, Toast.LENGTH_SHORT).show();
+            } catch (Exception exception) {
+                Log.w("DailyBackup", "无法保存目录授权", exception);
+                Toast.makeText(this, R.string.daily_backup_directory_failed, Toast.LENGTH_LONG).show();
+            }
+            return;
+        }
 
         if (req == REQ_EXPORT) {
             try (OutputStream os = getContentResolver().openOutputStream(uri)) {

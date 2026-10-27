@@ -58,4 +58,14 @@
     <string name="reminder_rest_timer_title">休息一下</string>
     <string name="reminder_overlay_required">请允许“显示在其他应用上层”，用于提醒弹窗和休息悬浮计时。</string>
     <string name="reminder_test_rest">测试休息提醒</string>
+    <string name="daily_backup_directory">每日自动备份目录</string>
+    <string name="daily_backup_not_configured">尚未设置</string>
+    <string name="daily_backup_description">请选择设备上的本地文件夹。点击“核对完毕”后自动备份全部待办和每日快照，同一天更新同一份备份，保留最近 30 天。可通过“导入恢复”恢复，卸载应用后备份文件仍保留。</string>
+    <string name="daily_backup_choose_directory">选择或更改备份目录</string>
+    <string name="daily_backup_missing_directory">本次未自动备份，请先到设置中选择自动备份目录</string>
+    <string name="daily_backup_success">今日自动备份已保存</string>
+    <string name="daily_backup_cleanup_failed">今日备份已保存，但部分旧备份清理失败</string>
+    <string name="daily_backup_failed">自动备份失败：%1$s。请检查设置中的备份目录</string>
+    <string name="daily_backup_directory_saved">自动备份目录已设置</string>
+    <string name="daily_backup_directory_failed">无法保存目录授权，请重新选择可读写的本地文件夹</string>
 </resources>
